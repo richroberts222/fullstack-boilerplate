@@ -1,0 +1,30 @@
+# Environment Variables / Secrets
+
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Dependencies
+
+node_modules/
+.pnp/
+.pnp.js
+
+# Next.js
+
+.next/
+out/
+next-env.d.ts
+
+# Next.js agent-rule auto-generation (disabled via agentRules: false; see /docs/web.md)
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
+# React Native / Expo
+
+.expo/
+.expo-shared/
+expo-env.d.ts
+dist/
+web-build/
