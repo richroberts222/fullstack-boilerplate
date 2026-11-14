@@ -6,6 +6,8 @@ Guidance for Claude Code in the App Boilerplate repository. This file is the ent
 
 # Operating rules (read first)
 
+The rules for every project, about how Rich and Claude work, are in `/docs/global-rules.md` (loaded in every session through `~/.claude/CLAUDE.md`). The rules below that only point there are kept so their numbers stay stable.
+
 1. **Documentation is the source of truth.** Read the relevant `/docs` file before significant work (§3). A missing or empty document means no rules yet, never invented rules. Undecided stays undecided; ask Rich (§17).
 2. **One platform, many clients.** The server is authoritative; clients never touch the database; replaceable boundaries get an interface (port); dependencies point inward (§4, §6, §7, `/docs/code-quality.md` §12).
 3. **Rich gives specs; Claude builds the entire app.** The files in `/docs/specs/` authorize building everything they describe; no per-feature approval or issue is needed. Claude writes the buildable specs in `/docs/features/` (numbered acceptance criteria, controls, scope fence), builds slice after slice with their automated tests in the same commit, and moves to the next slice without asking. Anything beyond the specs is a recommendation to Rich, not work to start. Stop only for rules 8, 9 and 10, for what only Rich can do, or for a question the specs truly do not answer and that rule 17 cannot turn into a setting (`/docs/qa-strategy.md` §3).
@@ -13,20 +15,20 @@ Guidance for Claude Code in the App Boilerplate repository. This file is the ent
 5. **Prove before claiming.** Run `pnpm validate`; commit and push only after it exits cleanly; report exact commands and results; never claim CI passed unless it ran.
 6. **Secure by default.** No secrets in committed files (§18); meet `/docs/secure-coding.md` (hostile input, data tiers: never store Social Security numbers, card numbers or medical records, no raw HTML).
 7. **Git:** Claude commits and pushes directly to `main` (Rich, 2026-11-04). Branches and pull requests are optional: use them when Rich asks or to try something risky. The guards stay: `pnpm validate` must exit cleanly before every push (rule 5); never force-push, rewrite `main`'s history or delete `main`; after each push check the `Validate` run, and if it is red, fixing it is the next job (§10, §19; `/docs/git-workflow.md`).
-8. **Ask before spending** on any vendor, account, plan, domain or tool.
+8. **Ask before spending:** global rule G20 (`/docs/global-rules.md`).
 9. **Database:** change schema only through the documented migration process; never touch `prod` (§13).
 10. **Legal gates:** no real user data is collected until the gates in `/docs/risk-and-legal.md` are met. That document is a checklist, not legal advice.
 11. **Workflow files, repository settings and security configuration** change only when Rich asks, or by the owner. Never weaken one to get work through.
 12. **Every problem becomes a rule.** When a defect or mistake is found, add a guard (preferred) or a rule in the owning document in the same commit, and log it in `/docs/lessons.md`. A repeat is a process failure: widen the guard. A fix must add or change a test, or log a lesson (CI enforces this only on pull requests, so on a direct push it is Claude's job).
-13. **Surface conflicts.** If instructions, documents and the repository disagree, say what was assumed, what exists and why it matters; stop and ask if the difference is material.
-14. **Keep shell commands short.** One purpose per command; never a long chain, a large inline heredoc or a multi-line inline script. Put multi-line code in a file with the file-writing tool and run that file. If a command is rejected as malformed, split it; do not retry it unchanged (`/docs/lessons.md`).
-15. **Two failures, then stop.** If the same step fails twice, stop: do not try a third time unchanged and do not keep spinning. Say what is failing, what is known about the cause, and what the real fix would cost, then ask Rich (owner rule, 2026-10-11; `/docs/lessons.md`).
+13. **Surface conflicts:** global rule G21.
+14. **Keep shell commands short:** global rule G10.
+15. **Two failures, then stop:** global rule G8.
 16. **Requirements are the authority.** For a product or content question, read `/docs/specs/`, `/docs/product/product-plan.md` and the approved specs in `/docs/features/` first and answer from them, citing the section. Ask Rich only when they truly do not say, and say what was checked.
 17. **Make open product decisions configurable.** When a product question is undecided (limits, prices, who gets what), do not ask for a yes or no and do not hard-code an answer: spec it as an audited admin-console setting with a safe default. Still ask for what only Rich can do (spending, legal, secrets) and for naming or branding that is truly undecided.
 18. **No mobile store builds on Claude's own initiative.** Never start an EAS or store build unless Rich says so; builds are limited. Record phone-only changes in `/docs/to-do.md` for the next build. Running the Expo dev server is fine.
-19. **Never hand Rich a task Claude can do.** Before asking Rich to click, copy, paste or configure anything, check whether Claude can do it with the tools it has (the Vercel, GitHub and database command-line tools, the file tools, the APIs). Do it, and report the result. Ask Rich only for what no tool can do: signing in to an account that has no logged-in tool, spending money (rule 8), legal decisions, and secrets that only his account can show. Then give exactly one step at a time (Rich, 2026-11-14).
-20. **"Proceed" means the next task in `/docs/notes.md`** (create it if missing). Read that file, take the first open package for your model (Opus, Sonnet or Haiku; your model name is in your system prompt; Fable counts as Opus), do only that package, and record the result there in the same commit, so that Rich can clear the conversation after every task and lose nothing. Never keep state only in chat. One session per folder at a time. Every reply that finishes or stops work ends with one closing line: `Safe to clear. Next: /model <Opus|Sonnet|Haiku>, then proceed.`, naming the model of the next open package in `/docs/notes.md` (or "nothing open"); if state is not yet saved, `Not safe to clear:` and why (Rich, 2026-11-14).
-21. **Spend tokens on the work, not on words.** Answer first, in a few lines; say a thing once; lists of at most 7 short lines; read only the files the task names; keep long command output in a file, not in the conversation. Errors, failed checks and risks are still stated in full (Rich, 2026-11-14).
+19. **Never hand Rich a task Claude can do:** global rule G18.
+20. **"Proceed", the task file and the closing line:** global rules G11-G17; the task file is `/docs/notes.md`.
+21. **Spend tokens on the work, not on words:** global rules G1-G9.
 
 ---
 
@@ -57,7 +59,7 @@ Before generating or significantly modifying code, check the relevant documentat
 | Delivery | `git-workflow.md`, `issues.md` (required for any issue or pull request), `deployment.md`, `release.md`, `to-do.md` (the owner's current open actions; Claude removes items when done), `exploratory-testing.md` (the owner's guide for exploratory testing and how to report findings) |
 | Product | `product-development.md`, `naming-conventions.md`, `product/product-plan.md`, `specs/` (Rich's source specs and requirements, as written), `features/` (approved, buildable specs derived from them) |
 | Risk, growth and learning | `risk-and-legal.md`, `incident-response.md`, `future-readiness.md`, `lessons.md` |
-| Template | `new-app-setup.md`, `customization-map.md`<!-- boilerplate:template:start -->, `boilerplate.md` (this repository is the authoritative template; how to make a new application from it)<!-- boilerplate:template:end --> |
+| Template | `new-app-setup.md`, `customization-map.md`<!-- boilerplate:template:start -->, `boilerplate.md` (this repository is the authoritative template; how to make a new application from it), `global-rules.md` (the master copy of Rich's rules for every project)<!-- boilerplate:template:end --> |
 
 (All paths are under `/docs`.) A test fails if a document in `/docs` is not linked from this table.
 
