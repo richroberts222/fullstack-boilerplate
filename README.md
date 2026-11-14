@@ -1,10 +1,14 @@
 # App Boilerplate
 
+<!-- boilerplate:template:start -->
+> **Template repository.** Make a new application from it with `pnpm init:app` (see [`docs/boilerplate.md`](docs/boilerplate.md)). This is the authoritative template: improve the foundation here, not in an application.
+
+<!-- boilerplate:template:end -->
 A pnpm monorepo: a Next.js web app (`apps/web`), an Expo mobile app foundation shell (`apps/mobile`), and shared packages (`packages/*`). Web, Android, and iPhone are clients of one backend. Project rules live in [`CLAUDE.md`](CLAUDE.md) and [`/docs`](docs).
 
 ## Prerequisites
 
-* Node.js 20+
+* Node.js 24+
 * Corepack (ships with Node) so the pinned pnpm version is used
 * A [Clerk](https://clerk.com) account and a [Neon](https://neon.tech) account
 
@@ -69,18 +73,13 @@ pnpm --filter web db:generate   # generate SQL migrations from apps/web/db/schem
 pnpm --filter web db:migrate    # apply committed migrations
 ```
 
-See [`docs/database.md`](docs/database.md) for the migration workflow.<!-- boilerplate:template:start -->
-
-## Starting a new application from this boilerplate
-
-App Boilerplate is the reference implementation. To create a different application from it, follow [`docs/boilerplate.md`](docs/boilerplate.md) (`pnpm init:app`), then [`docs/new-app-setup.md`](docs/new-app-setup.md) for the Clerk, Neon, Vercel, and Expo/EAS steps that need a human.<!-- boilerplate:template:end -->
+See [`docs/database.md`](docs/database.md) for the migration workflow.
 
 ## Development workflow
 
-1. Create a branch from `main`; one work item per branch ([`docs/git-workflow.md`](docs/git-workflow.md)).
-2. Read the relevant docs in `/docs` before changing code.
-3. Run `pnpm lint`, `pnpm typecheck`, `pnpm build`, and tests per [`docs/testing.md`](docs/testing.md).
-4. Open a pull request; do not commit to `main`. Vercel builds a preview.
+1. Read the relevant docs in `/docs` before changing code.
+2. Run `pnpm validate` (lint, typecheck, tests, build) per [`docs/testing.md`](docs/testing.md).
+3. Commit and push to `main` only after it exits cleanly, then check the `Validate` run ([`CLAUDE.md`](CLAUDE.md) rule 7, [`docs/git-workflow.md`](docs/git-workflow.md)). Branches and pull requests are optional.
 
 ## Repository layout
 
@@ -94,4 +93,4 @@ docs                Architecture and project rules (source of truth)
 
 ## Documentation index
 
-[`architecture-rules`](docs/architecture-rules.md) · [`auth`](docs/auth.md) · [`database`](docs/database.md) · [`data-fetching`](docs/data-fetching.md) · [`data-mutations`](docs/data-mutations.md) · [`shared-code`](docs/shared-code.md) · [`security`](docs/security.md) · [`testing`](docs/testing.md) · [`deployment`](docs/deployment.md) · [`mobile`](docs/mobile.md) · [`web`](docs/web.md) · [`ui`](docs/ui.md) · [`git-workflow`](docs/git-workflow.md) · [`new-app-setup`](docs/new-app-setup.md)<!-- boilerplate:template:start --> · [`boilerplate`](docs/boilerplate.md) · [`boilerplate-gap-report`](docs/boilerplate-gap-report.md) · [`boilerplate-references-report`](docs/boilerplate-references-report.md)<!-- boilerplate:template:end -->
+[`architecture-rules`](docs/architecture-rules.md) · [`auth`](docs/auth.md) · [`database`](docs/database.md) · [`data-fetching`](docs/data-fetching.md) · [`data-mutations`](docs/data-mutations.md) · [`shared-code`](docs/shared-code.md) · [`security`](docs/security.md) · [`testing`](docs/testing.md) · [`deployment`](docs/deployment.md) · [`mobile`](docs/mobile.md) · [`web`](docs/web.md) · [`ui`](docs/ui.md) · [`git-workflow`](docs/git-workflow.md) · [`new-app-setup`](docs/new-app-setup.md)

@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+
 import { config } from "dotenv";
 
 // Native Playwright (docs/automation/playwright.md). E2E runs the real app
@@ -8,7 +9,8 @@ import { config } from "dotenv";
 //
 //   Required: DATABASE_ENV=dev|qa, DATABASE_URL, CLERK_SECRET_KEY (sk_test_...),
 //             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY (pk_test_...),
-//             E2E_CLERK_USER_USERNAME, E2E_CLERK_USER_PASSWORD (a Clerk dev test user)
+//             E2E_CLERK_USER_EMAIL (a Clerk dev test user, for example name+clerk_test@example.com; it signs in
+//             through Clerk's testing helper with the secret key, so no password is stored anywhere)
 config({ path: ".env.local", quiet: true });
 
 const env = process.env;
@@ -18,8 +20,7 @@ const e2eReady = Boolean(
     env.DATABASE_URL &&
     env.CLERK_SECRET_KEY &&
     env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-    env.E2E_CLERK_USER_USERNAME &&
-    env.E2E_CLERK_USER_PASSWORD,
+    env.E2E_CLERK_USER_EMAIL,
 );
 
 // Fail closed: refuse anything that is not clearly a dev/qa setup.
@@ -35,7 +36,8 @@ if (e2eReady) {
   env.E2E_READY = "1";
 }
 
-const PORT = 3100;
+// E2E_PORT lets a local run reuse a dev server that is already running (Next allows only one per folder).
+const PORT = Number(env.E2E_PORT ?? 3100);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -44,17 +46,26 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(env.CI),
   retries: 0,
-  reporter: [["list"], ["html", { open: "never" }]],
+  // A dev server compiles each page the first time it is opened, so allow for that.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
+  // CI also writes a JSON report that scripts/e2e-summary.mjs turns into the run's summary table.
+  reporter: env.CI ? [["list"], ["html", { open: "never" }], ["json", { outputFile: "playwright-report/results.json" }]] : [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
-    // Diagnostics only on failure; traces can contain tokens, so artifacts are gitignored.
-    trace: "retain-on-failure",
+    // Diagnostics only on failure. Traces can contain session tokens and CI artifacts of a public
+    // repository are readable by others, so traces are off in CI; screenshots and videos show only the page.
+    trace: env.CI ? "off" : "retain-on-failure",
     screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: e2eReady
     ? {
-        command: `next dev --port ${PORT}`,
+        // CI serves the production build (the workflow builds it first): a dev server compiles every page the first
+        // time it is opened, which used up the runner's memory and got the whole job killed partway (docs/lessons.md).
+        // A local run uses the dev server, so a change shows without a rebuild.
+        command: env.CI ? `next start --port ${PORT}` : `next dev --port ${PORT}`,
         url: `http://localhost:${PORT}/api/v1/status`,
         reuseExistingServer: !env.CI,
         timeout: 120_000,

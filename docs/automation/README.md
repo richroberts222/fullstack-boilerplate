@@ -17,7 +17,7 @@ These documents are **rules**: what Claude and developers must follow when imple
 
 ## Status
 
-Rules here describe how tests are written when a layer is in use. Installed (Issue 49): Playwright (`@playwright/test`, `@clerk/testing`), `pnpm --filter web test:integration` (real DEV database), `pnpm --filter web test:e2e`. Coverage tooling is not installed; add it only when a real need is authorized (see `/docs/testing.md`).
+Rules here describe how tests are written when a layer is in use. Installed: Playwright (`@playwright/test`, `@clerk/testing`), `pnpm --filter web test:integration` (real DEV database), `pnpm --filter web test:e2e`. Coverage tooling is not installed; add it only when a real need is authorized (see `/docs/testing.md`).
 
 ## Layers at a glance
 

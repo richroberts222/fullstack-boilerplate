@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-// Repeatable functional proof of the extraction: copies this repository to a temp
-// directory, initializes it as a NON-Signal-One example app, then (with --full)
-// installs from the rewritten lockfile and runs the generated app's own
-// validation plus an offline migration generation. Needs network only for
-// `pnpm install`. Creates no external resources and touches no database.
+// Repeatable functional proof of the template: copies this repository to a temp directory, initializes
+// it as an example app, then (with --full) installs from the rewritten lockfile and runs the generated
+// app's own validation plus an offline migration generation. Needs network only for `pnpm install`.
+// Creates no external resources and touches no database.
 //
 //   pnpm prove:init            # copy + init + leak check (seconds, offline)
 //   pnpm prove:init --full     # also install, lint, typecheck, test, build, db:generate
@@ -16,26 +15,35 @@ import { fileURLToPath } from "node:url";
 
 import { checkBoilerplate } from "./check-boilerplate.mjs";
 import { initApp } from "./init-app.mjs";
-import { walk } from "./manifest.mjs";
+import { isLocalEnvFile, listSourceFiles, untrackedSourceFiles } from "./manifest.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const identity = { name: "Harbor Notes", slug: "harbor-notes", scope: "harbor", bundleId: "com.harbornotes.app" };
 const full = process.argv.includes("--full");
 const keep = process.argv.includes("--keep");
 
+const untracked = untrackedSourceFiles(repo);
+if (untracked.length > 0) {
+  console.error(`prove:init copies the files git tracks, so these new files would be missing from the proof. Stage them first (git add):\n  ${untracked.join("\n  ")}`);
+  process.exit(1);
+}
+
 const root = mkdtempSync(path.join(tmpdir(), "harbor-notes-"));
-for (const file of walk(repo)) {
+for (const file of listSourceFiles(repo)) {
+  if (isLocalEnvFile(path.posix.basename(file))) continue; // never copy local secrets into the temp copy
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
   cpSync(path.join(repo, file), path.join(root, file));
 }
+// Remove the temp copy on every exit path (including a failed step), unless --keep.
+if (!keep) process.on("exit", () => rmSync(root, { recursive: true, force: true }));
 console.log(`== copied template to ${root}`);
 
 initApp({ root, ...identity });
 if (checkBoilerplate(root).length > 0) throw new Error("leak check not clean");
 
-function run(label, command, args, cwd = root) {
+function run(label, command, args, extraEnv = {}, cwd = root) {
   console.log(`\n== ${label}: ${command} ${args.join(" ")}`);
-  const result = spawnSync(command, args, { cwd, stdio: "inherit", env: { ...process.env, CI: "1" } });
+  const result = spawnSync(command, args, { cwd, stdio: "inherit", shell: process.platform === "win32", env: { ...process.env, CI: "1", ...extraEnv } });
   if (result.status !== 0) {
     console.error(`FAILED: ${label}`);
     process.exit(result.status ?? 1);
@@ -56,7 +64,11 @@ if (full) {
     schema,
     `import { pgTable, text, uuid } from "drizzle-orm/pg-core";\nexport const note = pgTable("note", { id: uuid("id").primaryKey().defaultRandom(), ownerId: text("owner_id").notNull() });\n`,
   );
-  run("db:generate (offline, first migration)", "pnpm", ["--filter", "web", "db:generate"]);
+  // Generation is offline: it needs the variables to exist, not a reachable database.
+  run("db:generate (offline, first migration)", "pnpm", ["--filter", "web", "db:generate"], {
+    DATABASE_ENV: "dev",
+    DATABASE_URL: "postgresql://localhost/offline_generate_only",
+  });
   const migrations = path.join(root, "apps/web/drizzle");
   if (!existsSync(path.join(migrations, "meta/_journal.json"))) throw new Error("no journal generated");
   console.log(`generated: ${readFileSync(path.join(migrations, "meta/_journal.json"), "utf8").match(/"tag": "[^"]+"/)?.[0]}`);
@@ -67,4 +79,3 @@ if (full) {
 
 console.log(`\nPROOF OK (${full ? "full" : "init + leak check"})`);
 if (keep) console.log(`kept: ${root}`);
-else rmSync(root, { recursive: true, force: true });

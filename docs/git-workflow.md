@@ -10,20 +10,19 @@ The goal is to maintain a clean, understandable Git history and working tree whi
 
 # 1. Main Branch Protection
 
-`main` is the protected integration branch.
+**How this repository works (Rich, 2026-11-04):** Claude commits and pushes directly to `main`, and Rich gives specs and Claude builds the entire app (`/CLAUDE.md` rules 3 and 7). Branches, issues and pull requests are optional: use them only when Rich asks for one, or to try something risky. Everything below about branches, issues, pull requests and merging applies only when one is in use. Where this document and that decision disagree, the decision wins.
+
+Claude MAY commit and push directly to `main`, after `pnpm validate` exits cleanly.
 
 Claude MUST NOT:
 
-* Commit directly to `main`
-* Push directly to `main`
-* Merge Pull Requests into `main`
-* Approve its own Pull Requests
+* Force-push, rewrite the history of `main`, or delete `main`
+* Push with `pnpm validate` failing or not run
+* Leave a red `Validate` run on `main`: after each push check the run, and if it is red, fixing it is the next job
 * Bypass required GitHub checks or branch protections
 * Modify branch protection settings to bypass this workflow
 
-**The human developer owns the decision to merge changes into `main`.**
-
-Claude may prepare everything necessary for a Pull Request, but the final merge into `main` is performed manually by the human developer on GitHub.
+**A push to `main` deploys to production once Vercel is connected** (`/docs/deployment.md`). The legal gates (`/docs/risk-and-legal.md`) still decide when real user data may be collected.
 
 ---
 
@@ -37,17 +36,11 @@ Branch names should clearly identify the work being performed.
 
 When work originates from a GitHub Issue, prefer a branch name that references the Issue when practical.
 
-For example:
-
-```text
-claude/issue-12-add-revival-search
-```
-
-or another clear project-appropriate naming convention.
+The convention in use is `<type>/issue-<number>-<short-slug>`, where `<type>` is one of `feat`, `fix`, `docs`, `ci`, `chore`, `tooling` or `audit` (for example `docs/issue-104-accepted-decisions`). Branches created automatically by the GitHub Action use `claude/issue-<number>-<timestamp>`. The convention is not enforced by tooling.
 
 Do not create unnecessary branches.
 
-**One issue = one canonical feature branch and one PR.** Once a PR exists for an issue, its branch is canonical and all further work happens there; never create a second implementation branch for the same issue. Before modifying files in continued work, verify the current branch, the expected canonical branch, the issue/PR, and that history is available; if they disagree, stop and report. Blocked Git operations fail fast and are not retried. See `/docs/issues.md`.
+**One issue = one canonical feature branch and one PR (per issue; independent issues may proceed in parallel when scopes/files do not overlap, see `/docs/issues.md`).** Once a PR exists for an issue, its branch is canonical and all further work happens there; never create a second implementation branch for the same issue. Before modifying files in continued work, verify the current branch, the expected canonical branch, the issue/PR, and that history is available; if they disagree, stop and report. Blocked Git operations fail fast and are not retried. See `/docs/issues.md`.
 
 ---
 
@@ -114,6 +107,8 @@ Commit messages should be:
 * Specific
 * Based on the actual changes
 
+The convention in use is `<type>: <subject> (#<issue>)`, with the same `<type>` words as branch names (for example `ci: narrow Claude workflow, pin actions, add Dependabot, pin Node (#106)`). The convention is not enforced by tooling.
+
 Do not create meaningless messages such as:
 
 ```text
@@ -151,6 +146,8 @@ Before creating a Pull Request, Claude should determine whether the working bran
 If the branch is significantly behind or conflicts are likely, Claude should update the branch when appropriate.
 
 Claude may resolve merge conflicts on its own development branch when the correct resolution is clear.
+
+To incorporate `main`, Claude runs `git fetch origin main` and `git merge origin/main` on the canonical PR branch (never rebase, never force-push), then pushes the branch (in the GitHub Action, with the push helper that accepts only the current run's branch with no flags; locally, with a plain `git push` of the current branch, never forced). Procedure and constraints: `/docs/issues.md`.
 
 Claude MUST NOT resolve conflicts by silently discarding existing work.
 
@@ -231,10 +228,12 @@ Human reviews Vercel Preview
       ↓
 Human decides whether to merge
       ↓
-Human merges Pull Request
+Human merges Pull Request (or authorizes Claude to, see section 1)
 ```
 
 Claude may continue working on the Pull Request if the human requests changes or if review feedback is provided. Further `@claude` implementation requests should be made from the PR, not the original issue.
+
+Everything from review to fix to merge can be done from GitHub on a phone: comment `@claude` on the PR, Claude pushes to the PR head branch, CI re-runs, and Rich merges manually. See `/docs/issues.md`.
 
 ---
 
@@ -265,6 +264,8 @@ Claude may inspect or report relevant build/deployment results when available.
 A successful Vercel deployment does not mean the Pull Request is automatically approved or ready to merge.
 
 The human developer retains final approval.
+
+Exploratory UI/features MUST be reviewed in a Vercel Preview by Rich before merge, and must not be merged merely to obtain a Preview. Claude provides concrete review steps in the PR conversation.
 
 ---
 
@@ -379,13 +380,13 @@ If GitHub automatically associates the Pull Request with the Issue, allow the no
 
 # 20. Merge Authority
 
-Claude has **no merge authority**.
+Claude has **no merge authority of its own**. It may merge only when the human developer has explicitly authorized that merge, as defined in section 1 (a named pull request, or a stated class such as "all pull requests that have passed", with every check still required).
 
 This rule is explicit even if GitHub or Claude Code technically provides a mechanism capable of merging Pull Requests.
 
-Claude must stop after preparing the Pull Request for human review.
+Without that authorization, Claude must stop after preparing the Pull Request for human review.
 
-Only the human developer decides:
+The human developer decides:
 
 * Whether the Pull Request is acceptable
 * Whether it should be merged
@@ -396,7 +397,7 @@ Only the human developer decides:
 
 # 21. `/commit` Command
 
-The `/commit` command should follow these rules.
+If a `/commit` command is available in the Claude Code environment, it should follow these rules. (No such command is defined in this repository.)
 
 It should:
 
@@ -425,14 +426,37 @@ The final state should have:
 
 ---
 
-# 23. Guiding Principle
+# 24. Be Gentle With GitHub (Rate Limits)
+
+GitHub refuses a burst of requests with a "secondary rate limit" (HTTP 403 or 429). It cannot be switched off; the rule is to stay well under it and to stop when it hits.
+
+1. **Wait with one command, not a loop.** Watch checks with `gh pr checks <n> --watch --interval 30` (never shorter than 30 seconds). Do not poll `gh pr view`, `gh run view` or `gh api` in a repeating loop.
+2. **One request per question.** Ask for every field at once (`--json a,b,c`) instead of several calls. Do not list or fetch in a loop (every PR, every run); ask for one page and filter it.
+3. **No parallel bursts.** Send GitHub commands one at a time, not many at once.
+4. **Write slowly.** Do not create, edit or merge several pull requests, comments or runs in quick succession; merge one at a time (already required by section 20) and let one finish before the next.
+5. **When GitHub says "rate limit" or "Retry-After":** stop all GitHub calls, wait the time it names (at least a few minutes if it names none), then retry **once**. Do not retry in a hurry: that extends the wait. A second refusal means stop and tell the owner (operating rule 15).
+6. **Never work around it** with another account, token or tool. Do not share the request ID or error text outside the project.
+
+---
+
+# 25. Guiding Principle
 
 Git should make the development process **safer and easier to understand**, not more complicated.
 
 The preferred workflow is:
 
-> **Issue → Branch → Develop → Validate → Commit → Push → Pull Request → Human Review → Human Merge**
+> **Issue → Branch → Develop → Validate → Commit → Push → Pull Request → Human Review → Human Merge (or a merge the human has explicitly authorized)**
 
 Claude is responsible for maintaining the branch and preparing the Pull Request.
 
 **The human developer owns `main`.**
+
+## Slices, seeing everything together, and unplugging a slice
+
+Each product slice (`/docs/features/`) is its own issue, branch and pull request, as above. Three tools keep every slice easy to inspect, combine and take back out:
+
+1. **Revert.** Pull requests are merged with a merge commit, so one slice is removed by reverting that one merge commit (`git revert -m 1 <merge commit>`) in its own pull request. Nothing else changes. Each finished slice is also tagged (`slice-s0`, `slice-s1`, ...) so it can be found and compared.
+2. **Feature flags for unfinished or optional slices.** A slice that is merged but should not be visible yet (for example a screen that depends on a later slice) is hidden behind a flag read from the server configuration, off by default. Turning a slice off needs no code change. Database changes are forward-only and additive, so a hidden slice's tables can stay without harm; a reverted slice is cleaned up by a new migration, never by editing an old one.
+3. **An integration view.** To see several unmerged slices together before deciding, create a throwaway branch `integration/<name>` from `main` and merge the slice branches into it. Vercel publishes a preview of that branch. It is for looking only: it is never merged into `main`, is rebuilt from the slice branches when they change, and is deleted afterward. Slices that depend on each other are merged in their dependency order.
+
+`main` always stays releasable: only reviewed, validated pull requests reach it.

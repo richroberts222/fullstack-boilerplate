@@ -1,0 +1,19 @@
+{
+  "untestedTestIds": [
+    "error-home",
+    "error-retry",
+    "home-dashboard",
+    "home-dashboard-link",
+    "home-sign-in",
+    "home-sign-up",
+    "not-found-home",
+    "signin-code-form",
+    "signin-code-input",
+    "signin-code-submit",
+    "signin-email-input",
+    "signin-error",
+    "signin-form",
+    "signin-password-input",
+    "signin-submit"
+  ]
+}

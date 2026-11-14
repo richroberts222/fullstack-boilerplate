@@ -65,7 +65,7 @@ Both call the same `/api/v1` endpoints through `createApiClient` (`packages/vali
 
 1. The client signs in with Clerk (web: Clerk components at `/sign-in`, `/sign-up`; mobile: future Clerk Expo SDK).
 2. Each API request carries the session/token. `proxy.ts` gates web pages; the API handler verifies identity again server-side.
-3. The handler builds an `Actor` (Clerk user id and roles). Authorization (`lib/auth`) and the service decide what that actor may do. Client checks are convenience only.
+3. The handler builds an `Actor` (today only the Clerk user id; roles arrive with the permissions model). Authorization (`lib/auth`) and the service decide what that actor may do. Client checks are convenience only.
 4. Records that belong to a user store the Clerk user id.
 
 ## Environments
@@ -99,14 +99,29 @@ The framework existing is not a reason to write tests: each new test passes the 
 
 ## CI and deployment
 
-* `ci.yml` runs `pnpm validate` (lint, typecheck, unit tests, build) on pull requests with fake env values and no secrets. Branch protection should require `CI / Validate` and a human merge.
-* `claude.yml` and `claude-code-review.yml` run the Claude workflow; the app cannot edit workflow files.
+* `ci.yml` runs `pnpm validate` (lint, typecheck, unit tests, build) on pull requests and pushes to `main`, with fake env values and no secrets. Claude pushes directly to `main` after a clean local `pnpm validate` (see `/docs/git-workflow.md`).
+* `claude.yml` runs the Claude workflow; the app cannot edit workflow files. Node is pinned once in `.node-version` (24, matching Vercel) and pnpm once in `packageManager`.
 * Vercel builds `apps/web` from every pull request (Preview = QA) and deploys `main` to Production. A deployment succeeding does not prove architectural compatibility.
 * Mobile: Expo/EAS profiles `development`, `qa`, `staging`, `production` map to `dev`, `qa`, `stage`, `prod`. Nothing is provisioned until a human runs `eas init`.
 
+## Dependency and tooling compatibility
+
+Versions of the framework, the tools and the runtime must work together. Rules:
+
+1. **One runtime.** Node is pinned in `.node-version` (24, matching Vercel) and `engines`; pnpm only through `packageManager`. Type definitions for Node match the runtime major (`@types/node` ^24 in the web app).
+2. **The Expo SDK owns the mobile versions** of `expo`, `react` and `react-native`. They change only together, through the SDK upgrade, and `expo install --check` must report up to date. Never bump `react-native` or `react` for the mobile app on their own (Dependabot's grouped proposal to move React Native ahead of the SDK is why).
+3. **Unmet peer dependencies are defects.** `pnpm peers check` should be clean. The one documented exception today: the web app runs React 19.2.8 while Expo pins 19.2.3 (each app names its own matching `react-dom`, rule 7). Resolving it (one shared React version) is a recorded decision, not an accident.
+4. **Major upgrades are deliberate issues, preceded by a tool risk review** (advisories, release notes, open regressions; `/docs/secure-coding.md` section 4a). Dependabot does not open automatic major-version pull requests for npm (`.github/dependabot.yml`). Before a major upgrade of a core tool (Next.js, Expo, Clerk, Drizzle and the Neon driver, Playwright, TypeScript, ESLint, Vitest), read its release notes and open issues for breaking changes and known problems, and record the result in the issue.
+4b. **The tool risk review is monthly and scheduled.** A workflow (`.github/workflows/monthly-review.yml`) opens a checklist issue on the first of each month (`/docs/secure-coding.md` section 4a); the review is done by Claude on request or by the owner and recorded in that issue.
+5. **Minor and patch updates are grouped and must pass `Validate`;** a failing update is held, not forced.
+7. **Every app names its own `react` and `react-dom` at the same exact version, and shared dependencies agree across web, iPhone and Android.** React refuses to start if the two differ ("Incompatible React versions"), and pnpm will quietly pair an app with another workspace's `react-dom` unless the app names its own; that is how the phone app showed a red error screen when the web app moved ahead of the Expo SDK. `scripts/dependency-match.mjs` (run by `pnpm test:scripts`, part of `pnpm validate`) fails when an app's `react` and `react-dom` differ or when a package is declared with different major versions in different workspaces. Known differences are listed with their reasons in `KNOWN_DIFFERENCES` in that script (`@types/node` and `typescript` in the phone app today) until each is decided in its own issue. The phone app also has a test (`apps/mobile/src/react-versions.test.ts`) that reads the versions it actually resolves.
+6. **Check regularly.** A weekly workflow (`.github/workflows/health.yml`) runs `pnpm audit`, `pnpm peers check` and `expo install --check` and reports without blocking; also run them before every release and every upgrade.
+
+Enforced today: Dependabot ignores npm majors, `Validate` runs on every update, the lockfile is frozen in CI. The peer and Expo checks run weekly in `health.yml` (reporting only); they are not a merge gate. Proof: the compatibility problems found in the audit (React Native 0.87 proposed against Expo 57, an outdated Node type package, an Expo patch behind) were found by these two commands and fixed.
+
 ## Development workflow
 
-`CLAUDE.md` is the entry point. One issue = one canonical branch + one pull request; `docs/notes.md` records the handoff for that branch (no secrets); a human merges. `/docs/issues.md`, `/docs/git-workflow.md`. `docs/ideas/` lists optional future ideas; nothing there is a requirement.
+`CLAUDE.md` is the entry point. One issue = one canonical branch + one pull request; GitHub (issue, PR, diff, checks) is the live handoff and `docs/notes.md` is optional for non-discoverable information only (no secrets); independent issues may run in parallel when scopes do not overlap; a human merges. `/docs/issues.md`, `/docs/git-workflow.md`. `docs/ideas/` lists optional future ideas; nothing there is a requirement.
 
 ## Where identity and external projects are configured
 

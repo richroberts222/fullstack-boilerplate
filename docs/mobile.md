@@ -29,7 +29,7 @@ Mobile is a client of the App Boilerplate API, exactly like Web. It never reache
 | `DATABASE_URL`, `CLERK_SECRET_KEY`, any secret | never | never | yes |
 | `apps/web/*` imports | n/a | never | n/a |
 
-Mobile consumes workspace packages as TypeScript source through pnpm workspace links (`"@app-boilerplate/shared": "workspace:*"`); Expo SDK 57 configures Metro for monorepos automatically, so no `metro.config.js` is needed. This was verified by bundling both platforms (see `docs/notes.md` for the exact result).
+Mobile consumes workspace packages as TypeScript source through pnpm workspace links (`"@app-boilerplate/shared": "workspace:*"`); Expo SDK 57 configures Metro for monorepos automatically, so no `metro.config.js` is needed. This was verified by bundling both platforms.
 
 `src/boundary.test.ts` statically enforces the boundary: no server/database/Next.js imports, no `apps/web` imports, `process.env` reads limited to `EXPO_PUBLIC_*` literals, and no forbidden packages in `package.json`.
 
@@ -38,7 +38,7 @@ Note: `@app-boilerplate/shared` includes pure server/database env parsers. They 
 ## Backend boundary
 
 * Mobile talks to the App Boilerplate HTTP API only. It never connects to Neon, never imports `drizzle-orm`, and never imports from `apps/web`.
-* The API must expose what mobile needs as documented contracts (`/docs/api.md` is still empty and must be defined before mobile features are built).
+* The API must expose what mobile needs as documented contracts (defined in `/docs/api.md`; the bearer-token path is accepted by the API but has not yet carried a real token from a mobile client).
 * API auth for mobile uses Clerk session tokens sent as bearer tokens and validated on the server (`/docs/auth.md` sections 2 and 5). Mobile does not implement its own identity or authorization; the web/backend auth foundation is not redesigned here.
 
 ## Configuration
@@ -74,11 +74,9 @@ Mobile is intentionally not part of `pnpm build` (that builds Web); `pnpm valida
 
 Vitest covers pure TypeScript only. React Native component tests are not set up (see `/docs/testing.md`). The app has not been run on a simulator/device in CI; only Metro bundling for both platforms has been verified.
 
-
-
 ## Remaining scaffolding work
 
-1. Add `@clerk/expo`, secure token storage, and an API client once `/docs/api.md` and the auth contract exist.
-2. Choose a navigation approach when the first feature screens are designed.
+1. ~~Add `@clerk/expo`, secure token storage, and an API client.~~ Done in the foundation: `@clerk/expo` with the secure token cache (`expo-secure-store`), email and password sign-in, and the shared API client sending the session token as a bearer token. **Not yet proven on a physical device**: that needs the owner's `eas login` and a development build (Expo Go is not used for the proof). Native Clerk features (social sign-in, passkeys) are not set up.
+2. Navigation: `expo-router` is configured and the app has a sign-in gate and one starting screen. Add screens and tabs with the first feature that needs them.
 3. Decide store identifiers and EAS project setup.
 4. Decide a component-test approach (for example `jest-expo`) when the first interactive component warrants it.

@@ -2,13 +2,15 @@
 
 ## Status
 
-Vitest is the unit-test runner for every workspace that has tests (`packages/shared`, `packages/validation`, `apps/web`). It satisfies current needs; no other test tooling has been added. Categories that cannot yet be exercised (database-backed, API, component/E2E, mobile) are documented below, not faked.
+Vitest is the unit-test runner for every workspace that has tests (`packages/shared`, `packages/validation`, `apps/web`). It satisfies current needs; no other test tooling has been added. Categories not yet covered (component tests in a DOM, mobile on a device) are documented below, not faked. Database-backed integration tests and Playwright E2E exist (Issue 49) but are opt-in and do not run in CI; see the section below.
 
 ## Philosophy and detailed rules
 
+The overall strategy (test layers, the per-feature definition of done, regression policy, CI plan, security testing) is in `/docs/qa-strategy.md`.
+
 This document is the high-level testing philosophy: tests protect the whole platform, verify behavior rather than implementation, are deterministic, and respect environment safety. Detailed per-layer rules live in `/docs/automation/` (`test-value-review.md` (every new test or test group is justified before it is added), `unit.md`, `integration.md`, `acceptance.md`, `e2e.md`, `playwright.md`, `coverage.md`, `reporting.md`).
 
-Every feature has explicit acceptance criteria, derived tests, and an honest completion report (`/docs/automation/README.md`). Playwright is the preferred E2E framework but is not installed yet. Code coverage is a diagnostic signal; 100% is not required.
+Every feature has explicit acceptance criteria, tests derived where the Test Value Review justifies them, and an honest completion report (`/docs/automation/README.md`). no feature automatically requires every layer. Playwright is the preferred E2E framework but is not installed yet. Code coverage is a diagnostic signal; 100% is not required.
 
 Possible future quality capabilities (analytics, session replay, observability, usage-informed test prioritization) are in `/docs/ideas/`. They are NOT current requirements and must not be implemented without an explicit issue.
 
@@ -21,7 +23,7 @@ Run from the repository root:
 | `pnpm test` / `pnpm test:run` | Run every workspace's tests once (`vitest run`). What CI runs. |
 | `pnpm test:watch` | Watch mode across workspaces. |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | Other required checks. |
-| `pnpm validate` | `lint`, `typecheck`, `test:run`, `build` in order; the full local gate. |
+| `pnpm validate` | `lint`, `typecheck`, `test:run`, `test:scripts`, `build` in order; the full local gate. |
 | `pnpm --filter <name> test` / `test:watch` | One workspace (`web`, `@app-boilerplate/shared`, `@app-boilerplate/validation`). |
 
 Every workspace with tests defines `test` (`vitest run`) and `test:watch` (`vitest`). Root scripts use `pnpm -r --if-present`, so new workspaces are picked up automatically once they define these scripts.
@@ -47,9 +49,9 @@ Report results in the pull request. If a check fails, say so; do not claim succe
 | Web static/boundary checks | `apps/web/lib/env/boundary.test.ts` | Implemented |
 | Web server-side unit tests (server modules, with fakes) | `apps/web/**/*.test.ts` | Runner ready (node environment); add with features |
 | Web component tests | `apps/web` | Not yet set up. Needs a DOM environment and Testing Library; add when the first interactive component warrants it (document the decision). |
-| API / Server Action tests | `apps/web` | Future (see API foundation). Cover unauthenticated, unauthorized, invalid-input, success. |
-| Database-backed integration | `apps/web` (or a db package) | Future (see below). |
-| End-to-end | TBD | Future; critical flows (sign-in, protected routes). Playwright is the preferred framework (`/docs/automation/playwright.md`); not yet installed. |
+| API / Server Action tests | `apps/web` | Implemented for the API adapter and routes (`apps/web/lib/api/*.test.ts`, `apps/web/app/api/**/route.test.ts`): unauthenticated, unauthorized, invalid-input, success. Server Actions: none yet. |
+| Database-backed integration | `apps/web` | Implemented, opt-in: runs only against a dev/qa database, not in CI (see below). |
+| End-to-end | `apps/web/e2e` | Implemented, opt-in; critical flows (sign-in, protected routes). Playwright is installed (`/docs/automation/playwright.md`); specs run only when their prerequisites (a dev database and a Clerk test instance) are configured, and not in CI (see below). |
 | Mobile config/boundary (pure TypeScript) | `apps/mobile/src/*.test.ts` | Implemented (Vitest) |
 | Mobile component/device | `apps/mobile` | Future (see below). |
 
@@ -69,7 +71,7 @@ Add a helper only when at least two tests need it.
 * No test may read or write `prod`, and no real secrets live in source control. Production/environment guards (`assertNotProd`, `assertDestructiveAllowed`, the prod/preview/live-key checks) must not be weakened or bypassed for tests; test them instead.
 * Authentication in tests uses a faked auth boundary or Clerk development/test instances, never production users.
 
-## Database-backed integration tests and E2E (implemented, Issue 49)
+## Database-backed integration tests and E2E (implemented)
 
 * `pnpm --filter web test:integration` runs `*.integration.test.ts` with `vitest.integration.config.mts` (it loads `apps/web/.env.local` but not the env-clearing setup). Tests refuse unless `DATABASE_ENV` is `dev`/`qa` (via `assertDestructiveAllowed`), `APP_ENV` matches, and Vercel is unset. Migrations must be applied first (`db:migrate -- --env=dev`). Test data must use unique owner ids and be removed afterwards.
 * `pnpm --filter web test:e2e` runs Playwright (`/docs/automation/playwright.md`).
@@ -90,8 +92,8 @@ Original requirements, still binding for any new database-backed tests:
 
 `.github/workflows/ci.yml` (separate from `claude.yml`) runs on pull requests and pushes to `main`:
 
-* `validate` job: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test:run`, `pnpm build`. Read-only `contents` permission, no secrets, no database credentials. Build succeeds without credentials; keep it that way.
-* `workflow-lint` job: runs [actionlint](https://github.com/rhysd/actionlint) (pinned version, standalone binary, no new repo dependency) over `.github/workflows/` to catch malformed workflow files. Chosen over a local dependency to keep the toolchain small.
+* `validate` job (the only job): `pnpm install --frozen-lockfile`, then `pnpm validate` (lint, typecheck, test:run, test:scripts, build). Read-only `contents` permission, no secrets, no database credentials. Build succeeds without credentials; keep it that way.
+* **Planned, not built:** a `workflow-lint` job running [actionlint](https://github.com/rhysd/actionlint) (pinned version, standalone binary) over `.github/workflows/` to catch malformed workflow files. Workflow-file edits are made by the human.
 
 Because the GitHub App cannot edit workflow files, changes to `ci.yml` are made or approved by the human. Local `pnpm validate` runs the same commands as CI.
 
@@ -108,7 +110,7 @@ Because the GitHub App cannot edit workflow files, changes to `ci.yml` are made 
 
 ## Expectations for new features
 
-* New shared logic or schema ships with tests in the same PR (valid, invalid, boundary).
+* New shared logic or schema ships with tests in the same PR (valid, invalid, boundary) where the Test Value Review (`/docs/automation/test-value-review.md`) finds them valuable. Do not add tests solely for documentation-only changes.
 * New server logic ships with tests using fakes; new env variables extend the env tests.
 * Run `pnpm validate` before pushing and report exact results; never claim CI passed unless it ran on GitHub.
 * Do not add a test category's tooling until a real test needs it; document it here instead.

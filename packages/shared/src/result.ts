@@ -8,6 +8,8 @@ export const ERROR_CODES = [
   "not_found",
   "conflict",
   "rate_limited",
+  "unavailable",
+  "policy_reacceptance_required",
   "internal",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

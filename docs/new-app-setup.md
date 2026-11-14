@@ -36,7 +36,7 @@ All four pass with no environment variables and no accounts. The new application
 
 ## 4. Neon (`/docs/database.md`)
 
-1. Create a Neon project with one branch per environment: `dev`, `qa`, `stage`, `prod`. `prod` is created last and its credential never leaves the production host/Vercel Production scope.
+1. Create a Neon project with one branch per environment: `dev`, `qa`, `stage`, `prod`. `prod` is created last and its credential never leaves the production host/Vercel Production scope. Create the child branches from an empty baseline, not from a production branch that holds real data (`/docs/database.md` section 13).
 2. For each branch create a role that can reach only that branch's database; copy its connection string into the matching place in section 6.
 3. Set `DATABASE_ENV` to the environment the URL targets. `APP_ENV` is separate; it normally equals `DATABASE_ENV`, and a mismatch is refused.
 4. Lifecycle (all run from the repository root; `--env` must match `DATABASE_ENV`):
@@ -64,15 +64,15 @@ pnpm --filter web db:seed --env=dev             # dev | qa only
 
 | Value | Local dev | GitHub Actions | Vercel | Expo/EAS (future) |
 | --- | --- | --- | --- | --- |
-| `APP_ENV`, `DATABASE_ENV` | `apps/web/.env.local` (`dev`) | `claude.yml` env block (`dev`) | Preview `qa`, Production `prod` | `EXPO_PUBLIC_APP_ENV` per build profile in `eas.json` |
-| `DATABASE_URL` | `.env.local` (dev branch) | secret `NEON_DEV_DATABASE_URL` (dev only; `claude.yml`) | per scope, own value each | never |
+| `APP_ENV`, `DATABASE_ENV` | `apps/web/.env.local` (`dev`) | not set in workflows | Preview `qa`, Production `prod` | `EXPO_PUBLIC_APP_ENV` per build profile in `eas.json` |
+| `DATABASE_URL` | `.env.local` (dev branch) | none today (a future CI job may add a scoped dev secret) | per scope, own value each | never |
 | `CLERK_SECRET_KEY` | `.env.local` (`sk_test_`) | only if a workflow needs it | per scope (test / live) | never |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `.env.local` | not needed by `ci.yml` | per scope | n/a |
 | `EXPO_PUBLIC_API_BASE_URL` | `apps/mobile/.env.local` | n/a | n/a | `eas.json` `env` or EAS variables per profile (`https` outside dev) |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/mobile/.env.local` | n/a | n/a | EAS variables (public) |
 | E2E test user | `.env.local` | secret, dev Clerk user only | never | never |
 
-`ci.yml` needs no secrets: it runs `pnpm validate` against fake values. `claude.yml` needs the Claude token and, for database-backed work, the dev Neon secret; **no production credential belongs in GitHub Actions.**
+`ci.yml` needs no secrets: it runs `pnpm validate` against fake values. `claude.yml` needs only the Claude token; **no production credential belongs in GitHub Actions.**
 
 ## 8. Mobile / EAS (not provisioned by the boilerplate)
 
@@ -80,7 +80,7 @@ pnpm --filter web db:seed --env=dev             # dev | qa only
 
 ## 9. Claude / GitHub workflow
 
-Inherited unchanged: `CLAUDE.md`, `docs/issues.md` (one issue = one canonical branch + PR, `docs/notes.md` handoff), `docs/git-workflow.md`, `docs/automation/` including the Test Value Review. Add the Claude GitHub App and its OAuth/API secret in the new repository settings and enable branch protection requiring the `CI / Validate` check and a human merge. Workflow files are edited by a human (the Claude app cannot edit `.github/workflows`).
+Inherited: `CLAUDE.md`, `docs/issues.md`, `docs/git-workflow.md`, `docs/automation/` including the Test Value Review. Claude pushes directly to `main`, so add a `Protect main` ruleset that blocks deletion and force-push only (`/docs/security.md`). Add the Claude GitHub App and its OAuth/API secret in the repository settings if you want it. Workflow files are edited by a human.
 
 ## 10. Growing the application
 

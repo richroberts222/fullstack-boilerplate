@@ -11,14 +11,20 @@ const config: ExpoConfig = {
   scheme: "app-boilerplate",
   version: "0.0.0",
   platforms: ["ios", "android"],
+  // File-based navigation (docs/mobile.md): screens live in the app/ folder.
+  plugins: ["expo-router"],
+  // No Expo account owner and no EAS project id yet: `eas init` writes the project id when the owner links
+  // this app to its own Expo project (docs/new-app-setup.md). Never copy another application's values here.
   orientation: "portrait",
-  userInterfaceStyle: "automatic",
+  userInterfaceStyle: "dark",
+  // No app icon yet: add `icon` and the Android adaptive icon when the owner supplies artwork.
   ios: {
     bundleIdentifier: "com.example.appboilerplate",
     supportsTablet: true,
   },
   android: {
     package: "com.example.appboilerplate",
+    adaptiveIcon: { backgroundColor: "#0f172a" },
   },
 };
 

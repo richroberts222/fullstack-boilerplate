@@ -2,17 +2,17 @@
 
 Every known place where application identity or external project identity is set. Use it with `/docs/new-app-setup.md` (ordered human steps). Placeholders only: never write real URLs, keys, or tokens in this file or anywhere committed (`/CLAUDE.md` section 18).
 
-Legend. **Auto** = written by `pnpm init:app`; **Manual** = a human enters it; **Permanent** = hard or impossible to change after launch; **Env-specific** = differs per DEV/QA/STAGE/PROD; **Secret** = never committed; **Public** = non-secret configuration (may be committed or is embedded in client bundles).
+Legend. **Auto** = written when this application was initialized from the template (`pnpm init:app`, already run; the script is not kept in an application); **Manual** = a human enters it; **Permanent** = hard or impossible to change after launch; **Env-specific** = differs per DEV/QA/STAGE/PROD; **Secret** = never committed; **Public** = non-secret configuration (may be committed or is embedded in client bundles).
 
-If you are unsure whether anything was missed, run `pnpm check:boilerplate`: it fails on leftover template identity, placeholder store ids, proof artifacts, and credential-shaped content.
+There is no leak detector in an application. If you are unsure whether anything of the template or its reference project was left behind (a name, an account, a project id, an owner, an authorization), search the repository for it by hand; the security tests already refuse credential-shaped content.
 
-## 1. Set automatically by `pnpm init:app`
+## 1. Set when the application was initialized
 
-Flags: `--name` (display name), `--slug`, `--scope` (defaults to slug), `--bundle-id`. Textual substitution runs over every text file (including `pnpm-lock.yaml`), so the locations below are the ones that matter, not an exhaustive list.
+`pnpm init:app` took a display name, a slug, an npm scope (defaulting to the slug) and a bundle id, and applied them by textual substitution over every text file (including `pnpm-lock.yaml`), so the locations below are the ones that matter, not an exhaustive list. For this application: display name "App Boilerplate", slug `app-boilerplate`, bundle id `com.example.appboilerplate` (a placeholder, not yet registered with Apple or Google).
 
 | Value | Where it ends up | Kind |
 | --- | --- | --- |
-| Display name | `apps/web/app/layout.tsx` (title, description); `apps/web/app/page.tsx` and `components/auth/auth-header.tsx` (visible name); `apps/web/app/dashboard/page.tsx` (fallback label); `apps/mobile/app.config.ts` `name`; `apps/mobile/src/App.tsx`; `README.md`; prose in `CLAUDE.md` and `docs/` | Auto, Public |
+| Display name | `apps/web/app/layout.tsx` (title, description); `apps/web/app/page.tsx`, `apps/web/components/brand/brand-wordmark.tsx` and `apps/web/components/shell/app-header.tsx` (visible name); `apps/web/app/dashboard/page.tsx` (fallback label); `apps/mobile/app.config.ts` `name`; `apps/mobile/src/App.tsx`; `README.md`; prose in `CLAUDE.md` and `docs/` | Auto, Public |
 | Slug | root `package.json` `name`; `apps/mobile/app.config.ts` `slug` and `scheme` (URL scheme); tooling ledger schema prefix in `apps/web/db/tooling/seed.ts` (`<slug_with_underscores>_tooling`, schema-qualified in the database) | Auto, Permanent once a database or store listing exists |
 | npm scope | `packages/shared/package.json`, `packages/validation/package.json` names; every `@scope/...` import; `workspace:*` dependencies in `apps/web/package.json` and `apps/mobile/package.json`; `transpilePackages` in `apps/web/next.config.ts`; `pnpm-lock.yaml` | Auto |
 | Bundle id | `apps/mobile/app.config.ts`: `ios.bundleIdentifier` and `android.package` (the same value) | Auto, Permanent once published to a store |
@@ -36,7 +36,7 @@ Nothing here is provisioned by the repository. Each is created by a person in th
 
 | External resource | Naming guidance | Where the identifier/credential goes | Kind |
 | --- | --- | --- | --- |
-| GitHub repository | Use the slug. Create from the template, then init. | GitHub itself; enable branch protection requiring `CI / Validate` | Manual, Permanent-ish |
+| GitHub repository | Use the slug. | GitHub itself; a `Protect main` ruleset blocks deletion and force-push only (`/docs/security.md`) | Manual, Permanent-ish |
 | Clerk application | Use the display name. One development instance for local/QA/STAGE; a production instance only at launch. | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (Public) and `CLERK_SECRET_KEY` (Secret) in `apps/web/.env.local` and in Vercel per scope. Mobile: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (Public) later. Allowed origins/redirects are configured in the Clerk dashboard. | Manual, Env-specific |
 | Neon project | Use the slug. One branch/database per environment: `dev`, `qa`, `stage`, `prod`; one role per branch. | `DATABASE_URL` (Secret, Env-specific) in `apps/web/.env.local` (dev only), Vercel per scope, and for Claude DB-backed work the GitHub secret `NEON_DEV_DATABASE_URL` (dev only). Production URL only in the Production host. | Manual, Secret |
 | Vercel project | Use the slug. Root Directory `apps/web`, include files outside the root. | Environment variables per scope: Preview = `qa`, Production = `prod`. Domains added in Vercel and in Clerk's allowed origins. | Manual |
@@ -46,7 +46,7 @@ Nothing here is provisioned by the repository. Each is created by a person in th
 | Apple Developer / Google Play accounts | Organization or individual account decision | Outside the repo | Manual |
 | App URLs and origins | Production domain, Vercel preview pattern, localhost | Clerk dashboard (allowed origins/redirects); `EXPO_PUBLIC_API_BASE_URL` in `apps/mobile/.env.local` / EAS profile (`https` outside dev); Vercel domains | Manual, Env-specific, Public |
 | Local environment | Copy `apps/web/.env.example` and `apps/mobile/.env.example` to `.env.local` (gitignored) | Placeholders only in committed files | Manual, Secret |
-| GitHub Actions secrets | `CLAUDE_CODE_OAUTH_TOKEN` or API key for `claude.yml`; `NEON_DEV_DATABASE_URL` (dev only); a Clerk dev test user only if E2E is enabled in CI | Repository settings. `ci.yml` needs none. No production credential belongs in GitHub Actions. | Manual, Secret |
+| GitHub Actions secrets | `CLAUDE_CODE_OAUTH_TOKEN` or API key for `claude.yml`; a dev database secret only if a future CI job needs one; a Clerk dev test user only if E2E is enabled in CI | Repository settings. `ci.yml` needs none. No production credential belongs in GitHub Actions. | Manual, Secret |
 | Vercel environment variables | `APP_ENV`, `DATABASE_ENV`, `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Vercel project settings, scoped per environment | Manual, Env-specific, Secret/Public as named |
 | Future EAS secrets | Only if a build step needs one; client apps get public values only | EAS dashboard/CLI | Manual |
 

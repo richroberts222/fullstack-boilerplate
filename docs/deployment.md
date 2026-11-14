@@ -13,6 +13,8 @@ Authoritative deployment architecture for App Boilerplate. Variable reference an
 | Stage (final pre-production) | `stage` | `stage` | stage (protected) | development | see section 4 |
 | Production | `prod` | `prod` | prod (protected) | production | `production` |
 
+**Actual state (as of 2026-11-04):** nothing is provisioned for this application: no Vercel project, no custom domain, no Clerk instance and no Neon project exist yet. The table above is the plan; this paragraph is what exists. Update it, with the date and how it was read back, whenever the console state changes.
+
 Environment identity is explicit configuration, never inferred from hostnames or branch names.
 
 ## 2. Vercel (Web)
@@ -44,7 +46,7 @@ Never commit real `DATABASE_URL` values, Clerk secret keys, tokens, passwords, o
 | Vercel -> Environment Variables, scope **Preview** | qa values: `APP_ENV=qa`, `DATABASE_ENV=qa`, qa `DATABASE_URL`, Clerk development keys | Manual |
 | Vercel -> scope **Production** | prod values: `APP_ENV=prod`, `DATABASE_ENV=prod`, prod `DATABASE_URL`, Clerk production keys | Manual; only people authorized for production |
 | Vercel (Stage) | stage values (see section 4) | Manual |
-| GitHub Actions secrets | Only when a workflow requires them. Today `claude.yml` uses `NEON_DEV_DATABASE_URL` (dev). Future qa automation: separate `NEON_QA_DATABASE_URL`. | No prod credentials in Actions |
+| GitHub Actions secrets | Only when a workflow requires them. Today only the Claude token is used by `claude.yml`; the job has no database credential. Future qa automation: separate `NEON_QA_DATABASE_URL`, scoped to the step that needs it. | No prod credentials in Actions |
 | Future mobile: EAS/Expo | Per build profile: `EXPO_PUBLIC_*` public config via EAS environment variables/`eas.json` `env`. | **Planned.** `EXPO_PUBLIC_*` is public in the bundle; never put server secrets there |
 
 Rules: server-only values never carry `NEXT_PUBLIC_`/`EXPO_PUBLIC_`. Preview, Stage, and Production each have their own values; do not reuse one environment's secret in another (Vercel "All Environments" scope must not be used for secrets).
@@ -86,14 +88,14 @@ feature branch -> PR
 1. Local: develop against `dev`.
 2. PR: required validation passes; review the Preview, which runs on qa data.
 3. Schema changes: expand, then contract; migrations are applied before, or compatibly with, the code that needs them. Apply to qa for the Preview, then stage, then prod via the deliberate process.
-4. Merge to `main` triggers the Vercel Production deployment (current behavior of the Git integration). Until Stage exists there is no automated pre-production gate between merge and Production; this is a known gap.
+4. A push to `main` triggers the Vercel Production deployment (current behavior of the Git integration). Claude pushes directly to `main`, so there is no pre-production gate apart from `pnpm validate` until Stage exists; this is a known gap.
 5. Target flow once Stage exists: verify the release candidate on Stage, then promote to Production. The mechanism is undecided.
 
 ## 7. CI/CD relationship
 
-* **Automated now:** Vercel builds a Preview for each PR and a production deployment for `main`; `.github/workflows/claude.yml` and `claude-code-review.yml` run Claude (not a general CI pipeline).
-* **Manual now:** running `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` and reporting results in the PR (`/docs/testing.md`); Stage and Production database migrations; setting Vercel variables.
-* **Planned, not built:** a GitHub Actions validation workflow running those same commands. It will be owned by the Testing Foundation work (`/docs/testing.md`) and is deliberately not created here. When it exists it should be a required check before merge, using no production secrets, and may call the environment guards with fake qa values. Workflow files are edited by a human (the Claude GitHub App cannot edit them).
+* **Automated now:** Vercel builds a Preview for each PR and a production deployment for `main`; `.github/workflows/claude.yml` runs Claude when `@claude` is mentioned (not a general CI pipeline); `ci.yml` runs `pnpm validate`.
+* **Manual now:** reporting validation results in the PR (the same checks run automatically in CI); Stage and Production database migrations; setting Vercel variables.
+* **Built:** `.github/workflows/ci.yml` runs `pnpm validate` on pull requests and pushes to `main`. A `Protect main` ruleset (blocking deletion and force-push only) is **not yet set up** (`/docs/security.md`). It uses no production secrets. Workflow files are edited by a human (the Claude GitHub App cannot edit them).
 * **Planned, not built:** automated Stage promotion, post-deploy smoke checks, preview-environment configuration checks.
 
 ## 8. Mobile deployment boundary (not built)
@@ -122,7 +124,7 @@ Rules: mobile builds receive only `EXPO_PUBLIC_*` client-safe values per profile
 
 Verified in the repository: validation guards (unit tests in `packages/shared/src/env.test.ts`), production build without env vars, absence of committed secrets/`vercel.json`.
 
-Not verified (no cloud access in this work): Vercel project settings, actual Preview/Production variable values, Preview using qa, any cloud deployment, Neon branches, Clerk instances.
+Not verified: no GitHub ruleset, Vercel project, Neon project or Clerk application exists yet for this application. Record each one here, with the date and how it was read back, as the owner creates it.
 
 ## Mobile release
 

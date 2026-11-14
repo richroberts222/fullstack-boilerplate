@@ -2,6 +2,9 @@
   "name": "app-boilerplate",
   "private": true,
   "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
@@ -10,10 +13,11 @@
     "test": "pnpm -r --if-present test",
     "test:run": "pnpm -r --if-present test",
     "test:watch": "pnpm -r --parallel --if-present test:watch",
+    "test:scripts": "node --test scripts/fix-has-guard.test.mjs scripts/dependency-match.test.mjs scripts/e2e-summary.test.mjs",
+    "validate": "pnpm lint && pnpm typecheck && pnpm test:run && pnpm test:scripts && pnpm build && pnpm test:boilerplate",
     "init:app": "node scripts/boilerplate/init-app.mjs",
     "check:boilerplate": "node scripts/boilerplate/check-boilerplate.mjs",
-    "prove:init": "node scripts/boilerplate/prove-init.mjs",
     "test:boilerplate": "node --test scripts/boilerplate/boilerplate.test.mjs",
-    "validate": "pnpm lint && pnpm typecheck && pnpm test:run && pnpm test:boilerplate && pnpm build"
+    "prove:init": "node scripts/boilerplate/prove-init.mjs"
   }
 }

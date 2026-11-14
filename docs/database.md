@@ -381,11 +381,54 @@ Per-environment workflow (same migration files at every step; **no data is copie
 3. **DEV**: `db:migrate --env=dev`, then `db:migrate:status` and `db:migrate:verify`. Run again to confirm "no pending migrations". Commit the migration with the schema change.
 4. **QA**: after the PR is merged/promoted, `db:migrate --env=qa` with the qa configuration; status/verify; then `db:refresh --env=qa` if test data is wanted.
 5. **STAGE**: `db:migrate --env=stage` deliberately by a human with stage configuration; status/verify. Stage data is never reset/seeded. Take/confirm a Neon backup/restore point first.
-6. **PROD**: not run by local tooling (refused). A human applies the same reviewed, already-staged migration files through the deliberate production process after a verified backup/restore point exists, then checks status. The exact production automation is not yet defined (undecided).
+6. **PROD**: never run by local tooling (`db:migrate` refuses `prod`). The same reviewed, already-staged migration files are applied only by the manual **Migrate production** GitHub workflow (`.github/workflows/migrate-production.yml`, command `pnpm --filter web db:migrate:prod`). It starts only by hand, from `main`, with the confirmation word `migrate-production` typed in; the `production` GitHub environment requires the owner's approval for every run and holds the production database address as its secret `DATABASE_URL`; the command (`db/tooling/migrate-prod.ts`) checks all of that again and refuses anywhere else; the workflow has read-only repository access; and it only applies pending migrations (no reset, no seed, no data copied). Confirm a Neon restore point exists first, and run `db:migrate:status` equivalents by reading the workflow log. Tests: `db/tooling/migrate-prod.test.ts` (each condition proven) and `lib/security.test.ts` (the workflow's own rules).
 
 Migrations already applied to a shared environment are never edited; fix forward with a new migration.
 
+**Destructive migrations are guarded.** A migration that drops, retypes, renames, truncates or deletes, or that adds a NOT NULL constraint, fails `db/tooling/destructive-migrations.test.ts` unless it carries a line `-- allow-destructive: <issue or reason>` added after review. Prefer expand-then-contract (add the new shape, move data, remove the old shape in a later migration). Before a marked migration reaches `prod`, rehearse it on a Neon branch that holds a copy of production data and record the result in the pull request.
+
+**A new column on an existing table is a coordinated release.** Drizzle reads every column in `db/schema.ts`, so the moment code that knows a new column reaches production, every read of that table fails until production has the column. Production gets migrations only from the manual **Migrate production** workflow, and it runs from `main`. So: the pull request says so in its description; it is merged only when the owner is ready to run **Migrate production** straight away (a few minutes, one approval), never unattended; and the owner's to-do carries the step. A new table, or a column nothing reads yet, has no such window.
+
+**Every column is inventoried.** `/docs/data-inventory.md` lists each column with its data tier, purpose, retention and deletion path, and `db/schema-inventory.test.ts` fails when the schema and the inventory disagree, when a restricted (T4) tier appears, or when an owner column has no declared deletion path.
+
 **Forward-only, recovery and rollback.** Migrations are forward-only; Drizzle generates no down migrations. To undo a change, write a new forward migration. If a migration fails mid-way it is not recorded as applied (each runs in a transaction on Postgres), so fix and re-run. If data is damaged or a forward fix is not feasible, recovery is restoring from a Neon backup/point-in-time restore (or a branch from before the change), not reversing migrations. Backups protect data; migrations define schema; a restore returns to an earlier schema+data state, after which the committed migrations bring the schema forward again. Restore procedures themselves are not yet documented/exercised.
+
+---
+
+## 12.4 Backups and the restore drill
+
+**A backup that has never been restored is not a backup.** Backups are the only control that protects against data loss once real data exists, so the restore procedure is rehearsed before the first real data is stored (a launch gate, audit).
+
+**What the platform provides.** Neon keeps a history of each branch that allows creating a branch from an earlier point in time. How far back depends on the plan; the audit recorded a recovery window of about six hours and no scheduled snapshot, and the exact plan limits are console facts the owner confirms. Treat the vendor's history as the first line, not the only one.
+
+**Targets (proposed; the owner adjusts before launch).**
+
+| Target | Meaning | Proposal |
+| --- | --- | --- |
+| Recovery point (how much data may be lost) | The age of the newest data that can be restored | One hour or better once real users exist |
+| Recovery time (how long a restore takes) | From deciding to restore until the app is serving again | Under four hours, measured by the drill |
+
+If the vendor's history window is shorter than the recovery point requires, there are two options and **each has a cost, so the owner decides before any spending:** a plan with a longer history window, or scheduled logical dumps (`pg_dump`) stored separately from the vendor. Record the choice here.
+
+**Restore drill (run before real data, then quarterly and after major schema changes).**
+
+1. Note the time. Choose a recovery moment inside the history window.
+2. In the Neon console, create a branch of the production database from that moment, named `restore-drill-<date>`. Record the exact console steps used in this section the first time (they are not yet verified).
+3. Point a temporary local configuration at the drill branch labelled `qa` (the tooling guard accepts only `dev` or `qa` labels), using the drill branch's own credential. Never reuse the production credential.
+4. Verify the restored state read-only: `pnpm --filter web db:migrate:status --env=qa` and `db:migrate:verify --env=qa` (nothing pending, no unknown history), then spot-check row counts and the newest rows of the key tables.
+5. Record the measured recovery point and recovery time, and anything that surprised you.
+6. Delete the drill branch and the temporary credential.
+7. Log the result in the table below and in `/docs/lessons.md` if the drill exposed a gap.
+
+**Before a production migration** a restore point is created and confirmed (section 12.3).
+
+**Drill log.**
+
+| Date | Recovery moment | Recovery point achieved | Recovery time | Result and notes |
+| --- | --- | --- | --- | --- |
+| (none yet) | | | | No drill has been run. Required before the first real data. |
+
+**Enforcement and proof status.** Procedural: no automated check can prove a restore works. The proof is a dated entry in the drill log. Until that entry exists this control is **not proven**, and the scorecard keeps it at None.
 
 ---
 
@@ -409,6 +452,8 @@ These environments should remain logically independent even if they share a comm
 Neon branching may be used later for temporary database testing if there is a documented need, but temporary database branches must not become an uncontrolled one-per-feature requirement.
 
 Resetting a Neon child branch from a parent can replace data/state. Such operations must be deliberate and must never be performed against production accidentally.
+
+A Neon child branch starts as a copy of its parent's data. While `prod` is empty this is harmless. **Once `prod` holds real user data, no child branch may be created, or reset from its parent, from `prod`**: that would copy real data into a lower environment. Before real data exists, decide between creating children from an empty baseline and placing `prod` in its own Neon project (audit, decided together with).
 
 ---
 
@@ -449,7 +494,7 @@ Staging deployments intended as production-like validation must use `stage`.
 
 Preview deployments MUST NOT silently use the production database.
 
-Preview-to-database policy (decided for Issue 19): feature/PR Vercel Previews map to `qa`; local development maps to `dev`; `stage` is the protected final production-like verification environment and is not used for ordinary PR previews; production maps to `prod`. See `/docs/environment.md` and `/docs/deployment.md`.
+Preview-to-database policy: feature/PR Vercel Previews map to `qa`; local development maps to `dev`; `stage` is the protected final production-like verification environment and is not used for ordinary PR previews; production maps to `prod`. See `/docs/environment.md` and `/docs/deployment.md`.
 
 ---
 
@@ -503,7 +548,7 @@ Do not leave partially completed application state when atomic behavior is requi
 
 Transaction use should be driven by real consistency requirements rather than applied unnecessarily to every operation.
 
-Driver decision (Issue 23): App Boilerplate keeps the `neon-http` driver. It is stateless and suited to Vercel serverless/edge. Its limitation is that it does **not** support interactive transactions (`db.transaction(...)` throws "No transactions support in neon-http driver"; this is asserted in `db/db.test.ts`). It does support `db.batch([...])`, which sends several statements in one HTTP request and executes them atomically in a single transaction. Rules:
+Driver decision: App Boilerplate keeps the `neon-http` driver. It is stateless and suited to Vercel serverless/edge. Its limitation is that it does **not** support interactive transactions (`db.transaction(...)` throws "No transactions support in neon-http driver"; this is asserted in `db/db.test.ts`). It does support `db.batch([...])`, which sends several statements in one HTTP request and executes them atomically in a single transaction. Rules:
 
 - Use `db.batch([...])` for atomic multi-statement writes whose statements do not depend on each other's results at runtime.
 - Do not call `db.transaction`. If a real requirement needs read-then-write logic inside one transaction, that is an architectural decision: switch that path (or the driver) to Neon's WebSocket `Pool` driver (`drizzle-orm/neon-serverless`), and document it here first. No such requirement exists today, so no driver change was made.
@@ -613,12 +658,12 @@ At the time this document is established:
 
 - Neon is the selected PostgreSQL host.
 - The App Boilerplate Neon project exists.
-- Persistent `dev`, `qa`, `stage`, and production environments are being established.
+- The intended `dev`, `qa`, `stage`, and production environments are being established. Which branches actually exist is recorded in `/docs/deployment.md` (only the default `production` branch is confirmed).
 - Clerk authentication is operational.
 - Drizzle is the selected ORM/schema/migration layer.
 - Detailed App Boilerplate application schema design is still to be developed.
 
-Code status (environment validation lives in `@app-boilerplate/shared`, see `/docs/environment.md`): `apps/web/db` contains `env.ts`, `client.ts`, `index.ts` (server-only `getDb()` on `neon-http`), `errors.ts`, `health.ts`, and `schema.ts` (domain-free; see the layout in section 18). `apps/web/drizzle.config.ts` refuses `prod`. `pnpm --filter web db:check` runs the read-only `SELECT 1` helper against `dev` only. Transactions are `db.batch` only (section 18). Reset/seed tooling exists (sections 12.1-12.2, `db/tooling`, `db:reset|seed|refresh`); migration tooling exists (section 12.3) but the production application procedure is not automated.<!-- boilerplate:template:start --> See `/docs/boilerplate-gap-report.md`.<!-- boilerplate:template:end -->
+Code status (environment validation lives in `@app-boilerplate/shared`, see `/docs/environment.md`): `apps/web/db` contains `env.ts`, `client.ts`, `index.ts` (server-only `getDb()` on `neon-http`), `errors.ts`, `health.ts`, and `schema.ts` (domain-free; see the layout in section 18). `apps/web/drizzle.config.ts` refuses `prod`. `pnpm --filter web db:check` runs the read-only `SELECT 1` helper against `dev` only. Transactions are `db.batch` only (section 18). Reset/seed tooling exists (sections 12.1-12.2, `db/tooling`, `db:reset|seed|refresh`); migration tooling exists (section 12.3) but the production application procedure is not automated.
 
 The existence of this document does not imply that every described database capability has already been implemented.
 

@@ -36,7 +36,7 @@ This document consolidates security rules; detailed rules live in `/docs/auth.md
 * Add dependencies deliberately (see `CLAUDE.md` section 14). Commit the lockfile; install with the pinned pnpm.
 * Review the dependency and supply-chain implications of any new package.
 
-## Security foundation (Issue 26)
+## Security foundation
 
 Permanent decisions established by the security foundation. Automated checks live in `apps/web/lib/security.test.ts` (static, source-text only) alongside `apps/web/lib/env/boundary.test.ts` and `packages/shared/src/env.test.ts`.
 
@@ -88,12 +88,13 @@ Only the server holds a connection string, one per environment, matching `DATABA
 
 * Least-privilege `permissions`; secrets scoped to the steps that need them; no production secrets in Actions.
 * No merge, force-push, destructive reset, or branch-delete tooling (checked by test for workflow files).
-* Workflow files are edited by humans only (the GitHub App cannot). Audit findings for `claude.yml`, recorded rather than changed:
-  * `DATABASE_URL` (dev Neon) is set at job level, so every step, including the agent (allow-list includes `pnpm *`/`npx *`), can read it. Recommended: scope it to steps that need it, or drop it if the agent needs no database access. Mitigated today by dev-only scope.
-  * `Bash(pnpm *)`/`Bash(npx *)` are broad (arbitrary scripts/packages); narrow if feasible.
-  * `id-token: write` is granted in both workflows; confirm it is required (the Claude action uses OIDC) or remove.
-  * `actions/checkout@v4` and `anthropics/claude-code-action@v1` use floating tags; pinning to commit SHAs is recommended.
-  * `claude-code-review.yml` correctly has read-only contents/PR/issue permissions.
+* `main` should be protected by a GitHub ruleset named `Protect main`: deletion and force-push blocked. It must **not** require a pull request or a passing check before a push, because Claude pushes directly to `main` (`/CLAUDE.md` rule 7); `Validate` still runs after each push. **Not set up yet for this repository:** Rich creates it in repository settings (`/docs/new-app-setup.md`), and changes to it are made by Rich.
+* Workflow files are changed only through a pull request that the owner reviews and merges (the GitHub App cannot edit them). The Claude workflow (`claude.yml`) is the only one with write permissions. Its state, enforced by `apps/web/lib/security.test.ts`:
+  * No database credential in the job.
+  * Exact command allow-list: no wildcard on `pnpm`, `npx`, `corepack` or `gh pr`, and no pull-request merge command.
+  * Every `uses:` in every workflow is pinned to a full commit hash with a version comment. Dependabot (`.github/dependabot.yml`) proposes updates weekly.
+  * `id-token: write` is kept: whether the action needs it with an OAuth token is untested; remove it only after a test run passes without it.
+  * There is no automated review workflow (`claude-code-review.yml`): a previous attempt in the reference project produced no visible output.
 
 ### API and mobile expectations
 
@@ -105,8 +106,7 @@ The API foundation (`/docs/api.md`) implements the authenticate, validate, autho
 
 ### Dependencies
 
-`pnpm audit --prod` reported no known vulnerabilities when run for this issue. No dependency changes were made.
+`pnpm audit --prod` is not run in CI and its result changes over time; run it once before launch and record the result here. Dependabot version updates are configured in `.github/dependabot.yml`; Dependabot alerts and security updates depend on a repository setting (owner action, not yet done for this repository). Treat a high advisory in a runtime package as a stop-and-fix item; transitive items with no fix are recorded and revisited when a patch ships.
 
 ## Gaps (not yet implemented)
-
-Rate limiting, security headers/CSP, audit logging, and automated dependency scanning in CI are not configured.<!-- boilerplate:template:start --> See `/docs/boilerplate-gap-report.md`.<!-- boilerplate:template:end -->
+The standard that every change must meet, with data tiers, patch targets and the handling of known and unknown vulnerabilities, is `/docs/secure-coding.md`. Baseline response headers (anti-framing, nosniff, referrer and permissions policy, HTTPS) and lint rules against raw HTML injection are now in place and tested. Still open: a full script policy (CSP script-src, report-only first), rate limiting, audit logging, log redaction rules, cross-site request forgery review for Server Actions, and automated dependency and code scanning as merge gates (a weekly health workflow reports; code scanning is a repository setting).

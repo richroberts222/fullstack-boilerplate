@@ -14,7 +14,8 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-const files = [...sourceFiles(join(root, "src")), join(root, "index.ts"), join(root, "app.config.ts")];
+// The screens in app/ (expo-router) are scanned as well as src/: they are the code most likely to import something forbidden.
+const files = [...sourceFiles(join(root, "src")), ...sourceFiles(join(root, "app")), join(root, "app.config.ts")];
 
 // Packages and paths that must never be imported by the mobile bundle.
 const FORBIDDEN = [
@@ -55,6 +56,17 @@ describe("mobile backend boundary", () => {
         expect(m[1], `${file} reads ${m[1]}`).toMatch(/^EXPO_PUBLIC_/);
       }
       expect(text, `${file} reads process.env dynamically`).not.toMatch(/process\.env\[/);
+    }
+  });
+
+  // The app bundle is public, so no server secret may be named or embedded in it.
+  it("names no server secret and embeds no secret-key shape", () => {
+    const names = ["CLERK_SECRET_KEY", "DATABASE_URL", "DATABASE_ENV", "NEON_API_KEY"];
+    const shapes = [/sk_(?:live|test)_[A-Za-z0-9]{8,}/, /postgres(?:ql)?:\/\/[^\s"']+:[^\s"']+@/];
+    for (const file of [...files, join(root, "eas.json")]) {
+      const text = readFileSync(file, "utf8");
+      for (const name of names) expect(text, `${file} names ${name}`).not.toContain(name);
+      for (const shape of shapes) expect(text, `${file} embeds a secret-shaped value`).not.toMatch(shape);
     }
   });
 

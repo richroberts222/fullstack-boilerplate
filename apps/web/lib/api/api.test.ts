@@ -8,7 +8,7 @@ import { DatabaseError } from "../../db/errors";
 import { authorize, isOwner } from "../auth/authorize";
 import { conflict, notFound } from "../services/errors";
 import type { ServiceContext } from "../services/context";
-import { API_VERSION_HEADER, STATUS_BY_CODE, createApiRoute, toResponse } from "./handler";
+import { API_VERSION_HEADER, MAX_BODY_BYTES, STATUS_BY_CODE, createApiRoute, toResponse } from "./handler";
 
 // Generic, test-only service proving the boundary:
 // Request -> adapter -> auth -> validation -> service (+ authorization) -> Response.
@@ -73,6 +73,37 @@ describe("API adapter: request lifecycle", () => {
       const res = await makeRoute("user_1")(post(body, true));
       expect(res.status).toBe(400);
     }
+    expect(serviceCalls).not.toHaveBeenCalled();
+  });
+
+  it("enforces the body size cap itself, not through schema validation", async () => {
+    // A well-formed, schema-valid body padded with whitespace: only the size cap can reject it.
+    const valid = JSON.stringify({ id: "a", label: "renamed" });
+    const atCap = valid + " ".repeat(MAX_BODY_BYTES - valid.length);
+    const overCap = atCap + " ";
+    serviceCalls.mockClear();
+    const ok = await makeRoute("user_1")(post(atCap, true));
+    expect(ok.status).toBe(200);
+    const tooBig = await makeRoute("user_1")(post(overCap, true));
+    expect(tooBig.status).toBe(400);
+    const body = (await tooBig.json()) as Result<never>;
+    expect(body.ok === false && body.error.message).toMatch(/too large/i);
+    expect(serviceCalls).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts the body cap in bytes, so multi-byte text cannot slip past it", async () => {
+    // Four-byte characters count as two in a string length but four on the wire. 30,000 of them is
+    // 60,000 by length (under the cap) and 120,000 bytes (over it). Unknown fields are stripped, so
+    // the body is otherwise schema-valid and only the cap can reject it.
+    const wide = String.fromCodePoint(0x1f600).repeat(30000);
+    const body = JSON.stringify({ id: "a", label: "b", pad: wide });
+    expect(body.length).toBeLessThan(MAX_BODY_BYTES);
+    expect(new TextEncoder().encode(body).length).toBeGreaterThan(MAX_BODY_BYTES);
+    serviceCalls.mockClear();
+    const res = await makeRoute("user_1")(post(body, true));
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as Result<never>;
+    expect(json.ok === false && json.error.message).toMatch(/too large/i);
     expect(serviceCalls).not.toHaveBeenCalled();
   });
 

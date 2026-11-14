@@ -18,11 +18,11 @@ export default async function DashboardPage() {
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ") ||
     user.username ||
-    "App Boilerplate user";
+    "App Boilerplate member";
   const email = user.primaryEmailAddress?.emailAddress;
 
   return (
-    <main className="flex flex-1 items-start justify-center p-4 sm:p-8">
+    <main className="flex flex-1 flex-col items-center gap-4 p-4 sm:p-8">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-3">

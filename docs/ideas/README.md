@@ -21,3 +21,4 @@ When an idea is authorized and implemented, move the resulting decisions into th
 * `heatmaps-and-session-replay.md`
 * `automation-prioritization.md`
 * `observability.md`
+

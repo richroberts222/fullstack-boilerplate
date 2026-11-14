@@ -1,165 +1,82 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working in the App Boilerplate repository.
+Guidance for Claude Code in the App Boilerplate repository. This file is the entry point: the rules that always apply, and a map of where the detail lives. When you need a rule's detail, follow the link; do not rely on memory.
+
+---
+
+# Operating rules (read first)
+
+1. **Documentation is the source of truth.** Read the relevant `/docs` file before significant work (§3). A missing or empty document means no rules yet, never invented rules. Undecided stays undecided; ask Rich (§17).
+2. **One platform, many clients.** The server is authoritative; clients never touch the database; replaceable boundaries get an interface (port); dependencies point inward (§4, §6, §7, `/docs/code-quality.md` §12).
+3. **Rich gives specs; Claude builds the entire app.** The files in `/docs/specs/` authorize building everything they describe; no per-feature approval or issue is needed. Claude writes the buildable specs in `/docs/features/` (numbered acceptance criteria, controls, scope fence), builds slice after slice with their automated tests in the same commit, and moves to the next slice without asking. Anything beyond the specs is a recommendation to Rich, not work to start. Stop only for rules 8, 9 and 10, for what only Rich can do, or for a question the specs truly do not answer and that rule 17 cannot turn into a setting (`/docs/qa-strategy.md` §3).
+4. **Tests must be meaningful.** Every new test must be shown failing when the behavior it protects is broken (`/docs/automation/test-value-review.md`). Never weaken, skip or disable a test, guard or validation to make a failure pass (§12).
+5. **Prove before claiming.** Run `pnpm validate`; commit and push only after it exits cleanly; report exact commands and results; never claim CI passed unless it ran.
+6. **Secure by default.** No secrets in committed files (§18); meet `/docs/secure-coding.md` (hostile input, data tiers: never store Social Security numbers, card numbers or medical records, no raw HTML).
+7. **Git:** Claude commits and pushes directly to `main` (Rich, 2026-11-04). Branches and pull requests are optional: use them when Rich asks or to try something risky. The guards stay: `pnpm validate` must exit cleanly before every push (rule 5); never force-push, rewrite `main`'s history or delete `main`; after each push check the `Validate` run, and if it is red, fixing it is the next job (§10, §19; `/docs/git-workflow.md`).
+8. **Ask before spending** on any vendor, account, plan, domain or tool.
+9. **Database:** change schema only through the documented migration process; never touch `prod` (§13).
+10. **Legal gates:** no real user data is collected until the gates in `/docs/risk-and-legal.md` are met. That document is a checklist, not legal advice.
+11. **Workflow files, repository settings and security configuration** change only when Rich asks, or by the owner. Never weaken one to get work through.
+12. **Every problem becomes a rule.** When a defect or mistake is found, add a guard (preferred) or a rule in the owning document in the same commit, and log it in `/docs/lessons.md`. A repeat is a process failure: widen the guard. A fix must add or change a test, or log a lesson (CI enforces this only on pull requests, so on a direct push it is Claude's job).
+13. **Surface conflicts.** If instructions, documents and the repository disagree, say what was assumed, what exists and why it matters; stop and ask if the difference is material.
+14. **Keep shell commands short.** One purpose per command; never a long chain, a large inline heredoc or a multi-line inline script. Put multi-line code in a file with the file-writing tool and run that file. If a command is rejected as malformed, split it; do not retry it unchanged (`/docs/lessons.md`).
+15. **Two failures, then stop.** If the same step fails twice, stop: do not try a third time unchanged and do not keep spinning. Say what is failing, what is known about the cause, and what the real fix would cost, then ask Rich (owner rule, 2026-10-11; `/docs/lessons.md`).
+16. **Requirements are the authority.** For a product or content question, read `/docs/specs/`, `/docs/product/product-plan.md` and the approved specs in `/docs/features/` first and answer from them, citing the section. Ask Rich only when they truly do not say, and say what was checked.
+17. **Make open product decisions configurable.** When a product question is undecided (limits, prices, who gets what), do not ask for a yes or no and do not hard-code an answer: spec it as an audited admin-console setting with a safe default. Still ask for what only Rich can do (spending, legal, secrets) and for naming or branding that is truly undecided.
+18. **No mobile store builds on Claude's own initiative.** Never start an EAS or store build unless Rich says so; builds are limited. Record phone-only changes in `/docs/to-do.md` for the next build. Running the Expo dev server is fine.
 
 ---
 
 # 1. Project Overview
 
-App Boilerplate is a multi-client application consisting of:
-
-* Web application
-* Android application
-* iPhone application
-* Shared backend/API
-* Shared authentication
-* Shared data layer
-
-App Boilerplate is **one platform with multiple clients**, not three independent applications.
-
-The architecture must allow Web, Android, and iPhone to work together while sharing the appropriate backend, authentication, data, contracts, and business rules.
+App Boilerplate is **one platform with multiple clients**: a web application, an Android application, an iPhone application, a shared backend/API, shared authentication, and a shared data layer. It is not three independent applications. The user-facing product name is **App Boilerplate** (`/docs/naming-conventions.md`).
 
 ---
 
 # 2. Architectural Authority
 
-Before implementing significant functionality, Claude MUST understand the applicable architectural rules.
-
-The primary architectural rules are:
-
-`/docs/architecture-rules.md`
-
-This document takes precedence over assumptions about how a particular framework or feature should be implemented.
-
-Before making an architectural change, Claude MUST read the relevant documentation in `/docs`.
+`/docs/architecture-rules.md` is the primary architectural authority and takes precedence over assumptions about how a framework or feature should be implemented. Before an architectural change, read the relevant documentation in `/docs`.
 
 ---
 
 # 3. Documentation-First Development
 
-Before generating or significantly modifying code, Claude MUST check the relevant documentation in `/docs`.
+Before generating or significantly modifying code, check the relevant documentation. Not every listed document exists in every copy of the repository.
 
-Expected documentation includes:
+| Area | Documents |
+| --- | --- |
+| Architecture and code | `architecture-rules.md` (authority), `code-quality.md`, `services.md`, `shared-code.md`, `stack.md` |
+| Web and mobile | `web.md`, `mobile.md`, `ui.md`, `routing.md`, `server-components.md` |
+| Data | `database.md`, `data-inventory.md`, `data-fetching.md`, `data-mutations.md` |
+| API and integrations | `api.md`, `integrations.md`, `payments.md` |
+| Identity and security | `auth.md`, `permissions.md`, `security.md`, `secure-coding.md`, `environment.md` |
+| Quality | `testing.md`, `qa-strategy.md`, `unit.md`, `integration.md`, `acceptance.md`, `e2e.md`, `playwright.md`, `coverage.md`, `reporting.md`, `test-value-review.md` (all in `automation/`), `test-coverage-map.md` (what the tests drive and the known gaps) |
+| Delivery | `git-workflow.md`, `issues.md` (required for any issue or pull request), `deployment.md`, `release.md`, `to-do.md` (the owner's current open actions; Claude removes items when done), `exploratory-testing.md` (the owner's guide for exploratory testing and how to report findings) |
+| Product | `product-development.md`, `naming-conventions.md`, `product/product-plan.md`, `specs/` (Rich's source specs and requirements, as written), `features/` (approved, buildable specs derived from them) |
+| Risk, growth and learning | `risk-and-legal.md`, `incident-response.md`, `future-readiness.md`, `lessons.md` |
+| Template | `new-app-setup.md`, `customization-map.md`<!-- boilerplate:template:start -->, `boilerplate.md` (this repository is the authoritative template; how to make a new application from it)<!-- boilerplate:template:end --> |
 
-* `/docs/architecture-rules.md`
-* `/docs/auth.md`
-* `/docs/api.md`
-* `/docs/database.md`
-* `/docs/web.md`
-* `/docs/mobile.md`
-* `/docs/shared-code.md`
-* `/docs/testing.md`
-* `/docs/deployment.md`
-* `/docs/git-workflow.md`
-* `/docs/ui.md`
-* `/docs/data-fetching.md`
-* `/docs/data-mutations.md`
-* `/docs/routing.md`
-* `/docs/server-components.md`
-* `/docs/issues.md` (required whenever working on a GitHub issue or PR; defines the `docs/notes.md` handoff rule)
+(All paths are under `/docs`.) A test fails if a document in `/docs` is not linked from this table.
 
-Not all of these documents may exist yet.
-
-### Empty or Missing Documentation
-
-**If a referenced rule/documentation file exists but is empty, it means that the project has not yet established rules for that area. An empty file MUST NOT be interpreted as containing rules or requirements.**
-
-**If a referenced documentation file does not exist, do not invent its contents or assume undocumented requirements.**
-
-When a relevant document exists and contains rules, follow those rules.
-
-If a missing or empty document is necessary to make an architectural decision, identify that gap and determine whether the decision can safely be made from the existing architecture documentation.
-
-If it cannot be safely determined, request clarification rather than inventing an architectural rule.
+**Empty or missing documents.** An empty file means the project has not established rules for that area; it must not be read as containing rules. If a document is missing, do not invent its contents. If a missing or empty document is needed for an architectural decision and the decision cannot safely be made from existing documents, ask for clarification.
 
 ---
 
 # 4. Architecture Compatibility
 
-App Boilerplate must maintain compatibility across the entire platform.
-
-Whenever adding, removing, replacing, or significantly modifying an architectural component, Claude MUST consider:
-
-* Web
-* Android
-* iPhone
-* API
-* Authentication
-* Database
-* Shared code
-* Business logic
-* Testing
-* Deployment
-* Environment configuration
-
-Use `/docs/architecture-rules.md` for the required compatibility process.
-
-Do not optimize one client at the expense of the platform as a whole.
-
-If a proposed implementation creates an architectural conflict, stop and explain the conflict before proceeding.
+When adding, replacing or significantly changing an architectural component, consider Web, Android, iPhone, API, authentication, database, shared code, business logic, testing, deployment and environment configuration. Use `/docs/architecture-rules.md` for the compatibility check. Do not optimize one client at the expense of the platform. If a proposal creates a conflict, stop and explain it first.
 
 ---
 
 # 5. Technology Architecture
 
-The intended architecture includes:
-
-### Web
-
-* Next.js
-* React
-* TypeScript
-* Next.js App Router
-* Tailwind CSS where appropriate
-* Vercel deployment
-
-### Mobile
-
-* React Native
-* Expo
-* TypeScript
-* Android
-* iPhone
-
-### Authentication
-
-* Clerk
-
-### Backend
-
-* Next.js server-side functionality and API routes where appropriate
-* Server-authoritative business logic
-* APIs designed for use by Web and Mobile
-
-### Database
-
-* PostgreSQL
-* Neon
-* Drizzle ORM
-
-### Source Control
-
-* Git
-* GitHub
-* Pull Requests
-
-### Development Agent
-
-* Claude Code
-
-These technologies are architectural defaults, not permission to introduce incompatible patterns.
-
-Before replacing a technology or introducing another major framework or service, consult `/docs/architecture-rules.md`.
+Defaults, not permission to introduce incompatible patterns: Next.js (App Router), React and TypeScript with Tailwind and shadcn/ui on Vercel; React Native and Expo for Android and iPhone; Clerk for authentication; Next.js server code and API routes as the backend; PostgreSQL on Neon with Drizzle ORM; Git, GitHub and pull requests; Claude Code as the development agent. How they fit together: `/docs/stack.md`. Before replacing a technology or adding a major framework or service, consult `/docs/architecture-rules.md`.
 
 ---
 
 # 6. Backend Boundary
 
-Web, Android, and iPhone are clients of the App Boilerplate backend.
-
-Clients must not directly access the production database.
-
-The intended relationship is:
+Web, Android and iPhone are clients of the App Boilerplate backend and must never access the database directly. Authentication is validated at the server boundary; secrets and privileged database access stay server-side.
 
 ```text
 Web --------\
@@ -167,247 +84,99 @@ Android ------> App Boilerplate API ---> Drizzle ---> Neon
 iPhone -------/
 ```
 
-Authentication must be validated at the appropriate server boundary.
-
-Server-side secrets and privileged database access must remain server-side.
-
 ---
 
 # 7. Shared Architecture
 
-Where appropriate, App Boilerplate should share:
-
-* API contracts
-* TypeScript types
-* Validation schemas
-* Data models
-* Constants
-* Authoritative business rules
-
-Do not duplicate server-authoritative business logic independently across Web, Android, and iPhone.
-
-Shared code must not expose server-only functionality or secrets to client applications.
+Share API contracts, TypeScript types, validation schemas, data models, constants and authoritative business rules where appropriate. Do not duplicate server-authoritative logic across clients, and never expose server-only code or secrets to clients (`/docs/shared-code.md`).
 
 ---
 
 # 8. Web and Mobile Independence
 
-Web and mobile may have different:
-
-* User interfaces
-* Navigation
-* Layouts
-* Interaction patterns
-* Platform-specific behavior
-
-Do not force web UI architecture onto mobile.
-
-Do not create separate backend/data architectures merely because the user interfaces differ.
+Web and mobile may differ in UI, navigation, layout, interaction and platform behavior. Do not force web UI architecture onto mobile, and do not create separate backend or data architectures because the interfaces differ.
 
 ---
 
 # 9. Documentation as Source of Truth
 
-The `/docs` directory is part of the project's architecture.
-
-When implementation and documentation disagree:
-
-1. Identify the discrepancy.
-2. Determine whether the implementation or documentation is outdated.
-3. Do not silently establish a new architectural pattern.
-4. Update the appropriate documentation when an architectural decision changes.
-
-Documentation should remain synchronized with the actual architecture.
+When implementation and documentation disagree: identify the discrepancy, decide which is outdated, do not silently establish a new pattern, and update the documentation when an architectural decision changes. Material documentation drift is a defect; update documents in the same work.
 
 ---
 
 # 10. Git Workflow
 
-Use GitHub and Pull Requests for significant changes.
-
-Claude should:
-
-1. Inspect the issue/request.
-2. Read relevant project documentation.
-3. Inspect the existing implementation.
-4. Work on the appropriate branch.
-5. Make the required changes.
-6. Run appropriate validation/tests.
-7. Commit the changes.
-8. Push the branch.
-9. Create or update the Pull Request when appropriate.
-10. Report what changed and any relevant test/build results.
-
-Do not make significant unreviewed changes directly to `main`.
-
-Detailed Git rules belong in:
-
-`/docs/git-workflow.md`
-
-If `/docs/git-workflow.md` is empty, no additional project-specific Git rules have yet been established there.
+Read the specs and documents, inspect the implementation, build, validate, commit, push to `main`, check the `Validate` run, and report results. Detail: `/docs/git-workflow.md`. Branches, issues and pull requests are optional (`/docs/issues.md` applies when one is used). Pace GitHub requests gently and stop on a rate-limit reply (`/docs/git-workflow.md` §24).
 
 ---
 
 # 11. Vercel
 
-Vercel is the deployment platform for the App Boilerplate web application and applicable server-side functionality.
-
-Pull Requests should use Vercel preview deployments where available.
-
-A successful deployment does not by itself prove architectural compatibility.
-
-Architectural compatibility must still be evaluated according to `/docs/architecture-rules.md`.
+Vercel hosts the web application. Pull requests use Vercel Previews where available. A successful deployment does not by itself prove architectural compatibility.
 
 ---
 
 # 12. Testing
 
-Testing must protect the complete platform.
-
-When appropriate, consider:
-
-* Unit tests
-* API tests
-* Database tests
-* Web tests
-* Mobile tests
-* Authentication tests
-* Integration tests
-* End-to-end tests
-
-Testing requirements are documented in:
-
-`/docs/testing.md`
-
-If `/docs/testing.md` is empty, no additional project-specific testing rules have yet been established there.
+Testing protects the whole platform. The strategy, the per-feature definition of done and the layers are in `/docs/qa-strategy.md`; commands and status in `/docs/testing.md`. Never weaken a test or guard to pass; fix the cause.
 
 ---
 
 # 13. Database Safety
 
-Database changes must be handled through the documented database/migration process.
-
-Before modifying the database schema, read:
-
-`/docs/database.md`
-
-The project must maintain a reliable way to:
-
-* Apply migrations
-* Seed development/test data
-* Reset test data
-* Reproduce known test states
-
-Do not destroy migrations or required development configuration when resetting test data.
-
-Database-specific rules belong in `/docs/database.md`.
-
-If `/docs/database.md` is empty, do not invent project-specific database rules beyond the requirements established by the architecture documentation.
+Database changes follow the documented migration process in `/docs/database.md`. Keep a reliable way to apply migrations, seed development and test data, reset test data and reproduce known states. Never destroy migrations or required configuration when resetting data, and never target `prod` from local tooling or tests.
 
 ---
 
 # 14. Simplicity
 
-Prefer the simplest implementation that satisfies the requirements while preserving the architecture.
-
-Do not introduce additional:
-
-* Frameworks
-* Services
-* Dependencies
-* Databases
-* Authentication systems
-* Build systems
-* Abstraction layers
-
-unless there is a documented reason.
-
-Avoid unnecessary complexity.
+Prefer the simplest implementation that satisfies the requirements and preserves the architecture. Do not add frameworks, services, dependencies, databases, authentication systems, build systems or abstraction layers without a documented reason. Keep dependencies and tooling compatible with each other (versions, peers, the Expo SDK); upgrade deliberately, not automatically (`/docs/stack.md`).
 
 ---
 
 # 15. Architectural Changes
 
-A feature request does not automatically authorize an architectural change.
-
-If implementation requires a significant architectural decision that is not already documented, Claude should:
-
-1. Identify the architectural decision.
-2. Determine the affected components.
-3. Check Web compatibility.
-4. Check Android compatibility.
-5. Check iPhone compatibility.
-6. Check API compatibility.
-7. Check authentication compatibility.
-8. Check database compatibility.
-9. Check testing implications.
-10. Check deployment implications.
-11. Document the decision when appropriate.
-
-If the decision cannot safely be made from existing documentation, stop and request clarification rather than silently choosing an architecture.
+A feature request does not authorize an architectural change. If implementation needs an undocumented significant architectural decision, identify it, check the affected components and clients, document the decision when appropriate, and ask rather than silently choosing.
 
 ---
 
 # 16. Priority Order
 
-When making implementation decisions, use this priority:
-
-1. Existing documented App Boilerplate architecture
-2. Existing project conventions
-3. Compatibility across all clients
-4. Security and data integrity
-5. Maintainability
-6. Simplicity
-7. Feature-specific convenience
-
-A convenient implementation that violates the architecture is not acceptable.
+1. Existing documented architecture. 2. Existing project conventions. 3. Compatibility across all clients. 4. Security and data integrity. 5. Maintainability. 6. Simplicity. 7. Feature-specific convenience. A convenient implementation that violates the architecture is not acceptable.
 
 ---
 
 # 17. Do Not Assume Undocumented Rules
 
-Claude MUST distinguish between:
-
-* Established project rules
-* Technology defaults
-* Existing implementation patterns
-* Reasonable suggestions
-* Undecided architectural questions
-
-Do not turn a suggestion or assumption into a project rule without establishing it in the appropriate documentation.
-
-If something has not yet been decided, it should be treated as **undecided**, not silently assumed.
+Distinguish established rules, technology defaults, existing patterns, suggestions and undecided questions. Do not turn a suggestion into a rule without recording it in the proper document. Treat anything undecided as undecided.
 
 ---
 
 # 18. Secrets in Committed Files
 
-Claude MUST NEVER put any of the following into `docs/notes.md`, other documentation, examples, comments, test descriptions, or any other committed file:
-
-* Real database URLs
-* Credential-shaped database URLs (any `scheme://user:password@host/...` form, even if fake)
-* API keys, tokens, passwords, private keys, or other secrets
-
-Use obvious placeholders instead, such as `<DEV_DATABASE_URL>`, `<API_KEY>`, or `<TOKEN>`.
-
-When reporting results or concerns, describe a value (for example, "a fake database URL") rather than reproducing it.
-
-The repository's security tests enforce this. Never change or weaken them to make a failure pass; remove the offending content instead.
+Never put real database URLs, credential-shaped URLs (any `scheme://user:password@host/...`, even fake), API keys, tokens, passwords or private keys into documentation, examples, comments, test descriptions or any committed file. Use obvious placeholders (`<DEV_DATABASE_URL>`, `<API_KEY>`, `<TOKEN>`) and describe a value instead of reproducing it. The security tests enforce this; never change them to make a failure pass; remove the offending content.
 
 ---
 
-# 19. Final Rule
+# 19. Product Development System
 
-Before implementing anything substantial, ask:
+Detail: `/docs/product-development.md`.
 
-> **"Does this work as part of the App Boilerplate platform, or does it only work for the feature/client I am currently looking at?"**
+* Naming: `/docs/naming-conventions.md` is authoritative; do not invent terms marked UNDECIDED; ask Rich. Do not rename technical identifiers without a compatibility evaluation.
+* Direction: `/docs/specs/` (Rich's source material) is the authority, summarized in `/docs/product/product-plan.md`; specs in `/docs/features/` define exact behavior. The specs authorize building what they describe (rule 3); an idea outside them does not.
+* When a branch or pull request is used, one issue is one canonical branch and one pull request (`/docs/issues.md`).
+* Repository facts outrank external assumptions. Rich reviews UI on the running app; a change Rich rejects is fixed forward in a new commit.
+* **Merging:** the normal path has nothing to merge, because Claude pushes to `main` (rule 7). If a pull request is used, Claude may merge it once `Validate` passes. A failing check always blocks a push or a merge.
+* Git history and the GitHub checks are the live source of truth. `docs/notes.md` is optional and holds only non-discoverable information.
 
-App Boilerplate must remain a coherent platform across:
+---
 
-**Web + Android + iPhone + API + Clerk + Neon + Drizzle + Vercel.**
+# 20. Code Quality, Reuse, and Refactoring
 
-When in doubt, consult:
+`/docs/code-quality.md` is authoritative (Clean Code, SOLID, Clean Architecture; ports at replaceable boundaries) and `/docs/ui.md` for UI. Reuse existing behavior, components, tokens and contracts before creating duplicates, but do not abstract coincidental similarity. Broad or repository-wide refactors need explicit authorization (a separate approved issue). Audit findings are reported, not silently fixed.
 
-`/docs/architecture-rules.md`
+---
 
-and the relevant `/docs/*.md` documentation before proceeding.
+# 21. Final Rule
+
+Before implementing anything substantial, ask: **"Does this work as part of the App Boilerplate platform, or does it only work for the feature or client I am currently looking at?"** App Boilerplate must stay coherent across Web, Android, iPhone, the API, Clerk, Neon, Drizzle and Vercel. When in doubt, consult `/docs/architecture-rules.md` and the relevant document before proceeding.

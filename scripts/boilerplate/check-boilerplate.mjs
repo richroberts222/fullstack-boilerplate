@@ -1,17 +1,15 @@
 #!/usr/bin/env node
-// Detects Signal One identity, proof-only artifacts, and credential-shaped
-// content that must not remain in a newly initialized generic application.
+// Detects the template identity, reference-application names, template-only files and credential-shaped
+// content that must not remain in a newly initialized application.
 // Read-only. Usage: node scripts/boilerplate/check-boilerplate.mjs [--dir=<path>]
 // Exit 0 = clean, 1 = findings. See /docs/boilerplate.md.
-import { readFileSync, statSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { PROOF_PATHS, TEMPLATE_ONLY_PATHS, isLocalEnvFile, walk } from "./manifest.mjs";
+import { PROOF_PATHS, REFERENCE_APP_NAMES, TEMPLATE_ONLY_PATHS, isLocalEnvFile, walk } from "./manifest.mjs";
 
-// Signal One (reference app) and "App Boilerplate" (the standalone template's own neutral identity).
-const IDENTITY = /signal[\s_-]?one|app[\s_-]?boilerplate/i;
-const PROOF_CONTENT = /proof[-_ ]?items?|migration_proof/i;
+const TEMPLATE_IDENTITY = /app[\s_-]?boilerplate/i;
 // Same shapes the repository security test enforces (apps/web/lib/security.test.ts).
 const SECRETS = [
   ["clerk secret key", /sk_(?:live|test)_(?!REPLACE_ME)[A-Za-z0-9]{10,}/],
@@ -28,7 +26,7 @@ export function checkBoilerplate(root) {
   const findings = [];
   const add = (rule, file, detail, line) => findings.push({ rule, file, detail, ...(line ? { line } : {}) });
 
-  for (const p of PROOF_PATHS) if (existsSync(path.join(root, p))) add("proof-artifact", p, "proof-only path still present");
+  for (const p of PROOF_PATHS) if (existsSync(path.join(root, p))) add("proof-artifact", p, "example/proof path still present");
   for (const p of TEMPLATE_ONLY_PATHS) if (existsSync(path.join(root, p))) add("template-only", p, "template-only path still present");
 
   for (const file of walk(root)) {
@@ -43,8 +41,8 @@ export function checkBoilerplate(root) {
     const isTest = /\.test\.tsx?$/.test(base) || file.startsWith("packages/shared/src/testing/");
     const lines = readFileSync(full, "utf8").split("\n");
     lines.forEach((text, i) => {
-      if (IDENTITY.test(text)) add("identity", file, "Signal One / template identifier", i + 1);
-      if (PROOF_CONTENT.test(text)) add("proof-reference", file, "proof-item / migration_proof reference", i + 1);
+      if (TEMPLATE_IDENTITY.test(text)) add("identity", file, "template identity (App Boilerplate) not replaced", i + 1);
+      if (REFERENCE_APP_NAMES.test(text)) add("reference-app", file, "name of a reference application", i + 1);
       if (!isTest) for (const [name, re] of SECRETS) if (re.test(text)) add("secret", file, name, i + 1);
       if (file === "apps/mobile/app.config.ts" && /com\.example\./.test(text)) {
         add("placeholder-id", file, "placeholder store identifier (com.example.*) not replaced", i + 1);
@@ -73,7 +71,7 @@ function main() {
   const root = path.resolve(dirArg ? dirArg.slice("--dir=".length) : path.join(path.dirname(fileURLToPath(import.meta.url)), "../.."));
   const findings = checkBoilerplate(root);
   if (findings.length === 0) {
-    console.log("check:boilerplate: clean (no Signal One or template identity, proof artifacts, or credential-shaped content).");
+    console.log("check:boilerplate: clean (no template identity, reference-app names, template files, or credential-shaped content).");
     return;
   }
   const lines = formatFindings(findings);
