@@ -42,5 +42,6 @@ Rich clears the conversation after each task. Nothing may live only in chat.
 
 ## 4. Where a new rule goes
 
+- **G25 Ask before using a tool Rich has not named, and never wait on long jobs.** If a step needs a program, model or service Rich did not name (for example speech-to-text, a download, an install), say so in one line and get his yes first. Anything that may take more than about 30 seconds (transcribing, large downloads, builds) runs in the background; keep working or report, never sit and wait in the foreground. Rich's time and tokens are the budget (G20).
 - **G22 Sort every new rule.** When Rich gives a new rule, decide whether it is about **how Rich and Claude work** (it applies in any project: add it here, commit and push the boilerplate) or about **this one project** (its product, data, stack or git flow: add it to that project's CLAUDE.md). Tell Rich in one line which file it went to. If unsure, ask.
 - **G23 One copy of each rule.** A project's CLAUDE.md does not repeat a rule from this file; it may point to it by number (for example "see G18"). A project that needs a stricter version states only the difference.
