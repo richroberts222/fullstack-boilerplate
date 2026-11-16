@@ -18,6 +18,7 @@ Rich is a product owner with a QA background, **not a developer**. Explain in pl
 - **G8 Two failures, then stop.** If the same step fails twice, do not try a third time unchanged. Write down what is failing, what is known about the cause and what the real fix would cost, then ask Rich.
 - **G9 Never cut what matters.** Errors, failed checks, risks, conflicts and anything Rich must decide are always stated in full. Short does not mean incomplete.
 - **G10 Keep shell commands short.** One purpose per command; no long chains, large inline heredocs or multi-line inline scripts. Put multi-line code in a file and run the file. If a command is rejected as malformed, split it; do not retry it unchanged.
+- **G26 Delegate routine work.** A top-model session (Fable, Opus) keeps the hard reasoning, money logic and audits, and hands routine work to Sonnet or Haiku tasks in the task file, or to a cheaper subagent when the piece is big enough. Do not delegate a tiny step: a cold start costs more than doing it. (Rich, 2026-11-15)
 
 ## 2. Work survives a cleared conversation
 
