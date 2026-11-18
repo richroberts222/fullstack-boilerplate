@@ -1,0 +1,21 @@
+{
+  "name": "legal",
+  "description": "Terms and Privacy pages, acceptance with age confirmation, Download my data and Delete my account, with coverage guards.",
+  "requires": ["rate-limits"],
+  "inserts": [
+    { "file": "apps/web/db/schema.ts", "marker": "// addons: schema exports", "text": "export * from \"./addons/legal\";" },
+    { "file": "packages/validation/src/index.ts", "marker": "// addons: validation exports", "text": "export * from \"./legal\";" },
+    { "file": "apps/web/proxy.ts", "marker": "// addons: protected routes", "text": "  \"/accept(.*)\"," },
+    { "file": "apps/web/proxy.test.ts", "marker": "// addons: protected route names", "text": "  \"accept\"," },
+    { "file": "apps/web/proxy.test.ts", "marker": "// addons: public route names", "text": "  \"terms\",\n  \"privacy\",\n  \"account\", // server actions only, no page; each action checks the signed-in member itself" },
+    { "file": "apps/web/lib/services/rate-limit.ts", "marker": "// addons: rate limits", "text": "  export: { max: 5, windowSeconds: 3600 }," },
+    { "file": "apps/web/app/dashboard/page.tsx", "marker": "// addons: dashboard imports", "text": "import { redirect } from \"next/navigation\";\nimport { MyData } from \"@/components/legal/my-data\";\nimport { getPrivacyService } from \"@/lib/addons/legal\";" },
+    { "file": "apps/web/app/dashboard/page.tsx", "marker": "// addons: dashboard gate", "text": "  if (!(await getPrivacyService().hasAccepted(user.id))) redirect(\"/accept?next=/dashboard\");" },
+    { "file": "apps/web/app/dashboard/page.tsx", "marker": "{/* addons: dashboard sections */}", "text": "      <MyData />" },
+    {
+      "file": "docs/data-inventory.md",
+      "marker": "<!-- addons: inventory rows (an add-on inserts its own heading and table after this line) -->",
+      "text": "\n### Legal gate (add-on)\n\n| Table.column | Tier | Purpose | Retention | Deletion path |\n| --- | --- | --- | --- | --- |\n| legal_acceptances.id | T1 | Identifies one acceptance of the Terms and Privacy Policy | Until the account is deleted | Account deletion deletes it |\n| legal_acceptances.user_id | T2 | Who accepted | Same as the row | Account deletion deletes it |\n| legal_acceptances.terms_version | T1 | Which Terms wording was accepted | Same as the row | Deleted with the row |\n| legal_acceptances.privacy_version | T1 | Which Privacy Policy wording was accepted | Same as the row | Deleted with the row |\n| legal_acceptances.minimum_age | T1 | The minimum age the member confirmed | Same as the row | Deleted with the row |\n| legal_acceptances.accepted_at | T1 | When they accepted | Same as the row | Deleted with the row |\n"
+    }
+  ]
+}

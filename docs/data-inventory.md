@@ -13,3 +13,5 @@ New tables are added to the schema and to this table in the same pull request.
 
 | Table.column | Tier | Purpose | Retention | Deletion path |
 | --- | --- | --- | --- | --- |
+
+<!-- addons: inventory rows (an add-on inserts its own heading and table after this line) -->

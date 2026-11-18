@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -35,7 +35,10 @@ export function inventoryRows(markdown: string): Row[] {
 }
 
 describe("data inventory", () => {
-  const columns = schemaColumns(readFileSync(schemaPath, "utf8"));
+  // The base schema and every add-on's schema file (db/addons/*.ts) are classified the same way.
+  const addonsDir = path.join(__dirname, "addons");
+  const addonSchemas = existsSync(addonsDir) ? readdirSync(addonsDir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts")).map((f) => readFileSync(path.join(addonsDir, f), "utf8")) : [];
+  const columns = [readFileSync(schemaPath, "utf8"), ...addonSchemas].flatMap(schemaColumns);
   const rows = inventoryRows(readFileSync(inventoryPath, "utf8"));
 
   it("classifies every column in the schema", () => {

@@ -9,11 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+// addons: dashboard imports
 
 export default async function DashboardPage() {
   // The proxy already protects this route; currentUser() re-verifies on the server.
   const user = await currentUser();
   if (!user) return null;
+  // addons: dashboard gate
 
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ") ||
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
           </SignOutButton>
         </CardContent>
       </Card>
+      {/* addons: dashboard sections */}
     </main>
   );
 }

@@ -183,7 +183,10 @@ describe("add-ons", () => {
     const root = copyWithSamples();
     const lines = [];
     initApp({ root, ...identity, addons: "all", log: (l) => lines.push(l) });
-    assert.ok(lines.includes("add-ons: alpha, beta"), lines.join("\n"));
+    // The template's real add-ons are taken too, so check only the samples' order.
+    const taken = (lines.find((l) => l.startsWith("add-ons: ")) ?? "").slice("add-ons: ".length).split(", ");
+    assert.ok(taken.includes("alpha") && taken.includes("beta"), lines.join("\n"));
+    assert.ok(taken.indexOf("alpha") < taken.indexOf("beta"), `alpha comes before beta: ${taken.join(", ")}`);
     assert.deepEqual(resolveAddons(copyWithSamples(), "beta,alpha").map((a) => a.name), ["alpha", "beta"]);
   });
 

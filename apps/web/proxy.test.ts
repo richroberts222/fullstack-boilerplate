@@ -25,8 +25,17 @@ vi.mock("@clerk/nextjs/server", () => ({
 
 // Every top-level entry in app/ must be listed here. Adding a route directory fails
 // this test until its protection is decided and recorded.
-const PROTECTED = ["dashboard"];
-const PUBLIC = ["api", "sign-in", "sign-up"]; // api routes authenticate themselves (docs/auth.md)
+// An add-on adds its own routes after the marker lines.
+const PROTECTED = [
+  "dashboard",
+  // addons: protected route names
+];
+const PUBLIC = [
+  "api", // api routes authenticate themselves (docs/auth.md)
+  "sign-in",
+  "sign-up",
+  // addons: public route names
+];
 
 async function run(pathname: string) {
   const mod = (await import("./proxy")) as unknown as {

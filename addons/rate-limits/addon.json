@@ -1,0 +1,15 @@
+{
+  "name": "rate-limits",
+  "description": "Per-member rate limits on server actions (one database table, no scheduled job).",
+  "requires": [],
+  "inserts": [
+    { "file": "apps/web/db/schema.ts", "marker": "// addons: schema exports", "text": "export * from \"./addons/rate-limits\";" },
+    { "file": "apps/web/lib/actions.ts", "marker": "// addons: action imports", "text": "import { getRateLimiter } from \"@/lib/addons/rate-limits\";" },
+    { "file": "apps/web/lib/actions.ts", "marker": "// addons: action checks", "text": "    if (options.limit) await getRateLimiter().check(options.limit, ctx.actor.userId);" },
+    {
+      "file": "docs/data-inventory.md",
+      "marker": "<!-- addons: inventory rows (an add-on inserts its own heading and table after this line) -->",
+      "text": "\n### Rate limits (add-on)\n\n| Table.column | Tier | Purpose | Retention | Deletion path |\n| --- | --- | --- | --- | --- |\n| rate_limits.key | T2 | The limit's name and the member's id (\"export:<user id>\"), to stop abuse | At most a day after its window | Removed as the limiter runs once older than a day; account deletion deletes the member's rows |\n| rate_limits.window_start | T1 | When the current counting window began | Same as the row | Deleted with the row |\n| rate_limits.count | T1 | Requests in the current window | Same as the row | Deleted with the row |\n"
+    }
+  ]
+}

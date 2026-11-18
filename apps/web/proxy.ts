@@ -1,6 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
+const isProtectedRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  // addons: protected routes
+]);
 
 // signInUrl and signUpUrl are named here as well as on the provider in the layout: this guard does not see the
 // provider's setting, and without them a signed-out visitor to a protected page is sent to Clerk's hosted sign-in
