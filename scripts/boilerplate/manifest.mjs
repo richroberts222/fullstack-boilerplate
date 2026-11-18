@@ -12,7 +12,7 @@ import path from "node:path";
 export const PROOF_PATHS = [];
 
 /** Files that only make sense in the template repository; init removes them. */
-export const TEMPLATE_ONLY_PATHS = ["docs/boilerplate.md", "docs/global-rules.md", "scripts/boilerplate"];
+export const TEMPLATE_ONLY_PATHS = ["docs/boilerplate.md", "docs/global-rules.md", "scripts/boilerplate", "addons"];
 
 /**
  * Applications the foundation was built from or for. Their names must never appear in the template or in

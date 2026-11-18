@@ -10,6 +10,7 @@ import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { checkBoilerplate } from "./check-boilerplate.mjs";
+import { insertAfterMarker, resolveAddons } from "./addons.mjs";
 import { applyIdentity, initApp, stripMarkedRegions, validateIdentity } from "./init-app.mjs";
 import { listSourceFiles, untrackedSourceFiles } from "./manifest.mjs";
 
@@ -136,5 +137,73 @@ describe("template tooling", () => {
   it("region stripping handles block and inline markers", () => {
     const text = "a\n\n<!-- boilerplate:template:start -->\n## P\nx\n<!-- boilerplate:template:end -->\n\n## Keep\nline.<!-- boilerplate:template:start --> gone<!-- boilerplate:template:end -->\n";
     assert.equal(stripMarkedRegions(text), "a\n\n## Keep\nline.\n");
+  });
+});
+
+// Optional add-ons (owner decision 2026-11-18, /docs/boilerplate.md "Add-ons"). Sample add-ons are written
+// into a temp copy only; the template's own add-ons are proven by `pnpm prove:init --full`.
+describe("add-ons", () => {
+  const MARKER = "// addons: sample marker";
+
+  /** A template copy with two sample add-ons: "alpha", and "beta" which requires alpha and inserts into a base file. */
+  function copyWithSamples({ betaReplacesBase = false, betaMarker = MARKER } = {}) {
+    const root = copyTemplate();
+    const put = (rel, text) => {
+      mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      writeFileSync(path.join(root, rel), text);
+    };
+    put("apps/web/lib/utils.ts", `${read(root, "apps/web/lib/utils.ts")}\n${MARKER}\n`);
+    put("addons/alpha/addon.json", JSON.stringify({ name: "alpha", description: "Sample A" }));
+    put("addons/alpha/files/apps/web/lib/alpha/alpha.ts", 'export const product = "App Boilerplate alpha";\n');
+    put("addons/beta/addon.json", JSON.stringify({ name: "beta", description: "Sample B", requires: ["alpha"], inserts: [{ file: "apps/web/lib/utils.ts", marker: betaMarker, text: 'export { product } from "./alpha/alpha";' }] }));
+    put(betaReplacesBase ? "addons/beta/files/apps/web/lib/utils.ts" : "addons/beta/files/docs/features/beta.md", "# Beta\n");
+    return root;
+  }
+  const quiet = { log: () => {} };
+
+  it("adds the chosen add-ons' files with the new identity, applies inserts after their marker, and removes addons/", () => {
+    const root = copyWithSamples();
+    initApp({ root, ...identity, addons: "alpha,beta", ...quiet });
+    assert.equal(read(root, "apps/web/lib/alpha/alpha.ts"), 'export const product = "Harbor Notes alpha";\n');
+    assert.ok(existsSync(path.join(root, "docs/features/beta.md")));
+    const utils = read(root, "apps/web/lib/utils.ts");
+    assert.ok(utils.indexOf('export { product } from "./alpha/alpha";') > utils.indexOf(MARKER), "insert goes after the marker");
+    assert.ok(!existsSync(path.join(root, "addons")), "addons/ is template-only");
+    assert.deepEqual(checkBoilerplate(root), []);
+  });
+
+  it("without --with, no add-on file reaches the application", () => {
+    const root = copyWithSamples();
+    initApp({ root, ...identity, ...quiet });
+    assert.ok(!existsSync(path.join(root, "apps/web/lib/alpha")));
+    assert.ok(!existsSync(path.join(root, "addons")));
+  });
+
+  it("'all' takes every add-on, each after what it requires", () => {
+    const root = copyWithSamples();
+    const lines = [];
+    initApp({ root, ...identity, addons: "all", log: (l) => lines.push(l) });
+    assert.ok(lines.includes("add-ons: alpha, beta"), lines.join("\n"));
+    assert.deepEqual(resolveAddons(copyWithSamples(), "beta,alpha").map((a) => a.name), ["alpha", "beta"]);
+  });
+
+  it("refuses, before changing anything: an unknown add-on, a missing requirement, a base file replaced, a marker not found once", () => {
+    const cases = [
+      [copyWithSamples(), "nope", /Unknown add-on: nope/],
+      [copyWithSamples(), "beta", /needs alpha/],
+      [copyWithSamples({ betaReplacesBase: true }), "alpha,beta", /would replace apps\/web\/lib\/utils\.ts/],
+      [copyWithSamples({ betaMarker: "// addons: not there" }), "alpha,beta", /must appear exactly once/],
+    ];
+    for (const [root, addons, message] of cases) {
+      const before = read(root, "package.json");
+      assert.throws(() => initApp({ root, ...identity, addons, ...quiet }), message);
+      assert.equal(read(root, "package.json"), before, "nothing was changed");
+      assert.ok(!existsSync(path.join(root, "apps/web/lib/alpha")), "no add-on file was written");
+    }
+  });
+
+  it("an insert keeps the file's line endings", () => {
+    assert.equal(insertAfterMarker("a\r\n// m\r\nb", "// m", "x\ny", "t"), "a\r\n// m\r\nx\r\ny\r\nb");
+    assert.throws(() => insertAfterMarker("// m\n// m", "// m", "x", "t"), /exactly once \(found 2\)/);
   });
 });

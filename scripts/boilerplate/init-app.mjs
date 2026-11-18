@@ -4,13 +4,14 @@
 // removes template-only files, then runs the leak check. Plain Node, no dependencies, no network.
 //
 //   node scripts/boilerplate/init-app.mjs --name="Harbor Notes" --slug=harbor-notes \
-//        --bundle-id=com.harbornotes.app [--scope=harbor-notes] [--dir=<path>] [--dry-run]
+//        --bundle-id=com.harbornotes.app [--scope=harbor-notes] [--with=<add-on>,...|all] [--dir=<path>] [--dry-run]
 //
 // Run it once, in a fresh copy. It refuses to run twice. See /docs/boilerplate.md.
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { applyAddons, resolveAddons } from "./addons.mjs";
 import { checkBoilerplate, formatFindings } from "./check-boilerplate.mjs";
 import { PROOF_PATHS, REFERENCE_APP_NAMES, TEMPLATE_ONLY_PATHS, isLocalEnvFile, walk } from "./manifest.mjs";
 
@@ -81,13 +82,15 @@ Optional. Holds only information that cannot be found in the code, the git histo
 Never include real or credential-shaped secrets here.
 `;
 
-export function initApp({ root, name, slug, scope = slug, bundleId, dryRun = false, log = console.log }) {
+export function initApp({ root, name, slug, scope = slug, bundleId, addons, dryRun = false, log = console.log }) {
   const identity = { name, slug, scope, bundleId };
   const problems = validateIdentity(identity);
   if (problems.length > 0) throw new Error(`Invalid identity:\n${problems.join("\n")}`);
   if (!existsSync(path.join(root, "scripts/boilerplate/init-app.mjs"))) {
     throw new Error("scripts/boilerplate/init-app.mjs not found under --dir: already initialized, or not a template copy.");
   }
+  // Checked before anything changes: an unknown add-on or a missing requirement stops init cleanly.
+  const chosen = resolveAddons(root, addons);
   const abs = (p) => path.join(root, p);
   const step = (message, fn) => {
     log(`${dryRun ? "[dry-run] would " : ""}${message}`);
@@ -95,6 +98,9 @@ export function initApp({ root, name, slug, scope = slug, bundleId, dryRun = fal
   };
 
   for (const p of PROOF_PATHS) if (existsSync(abs(p))) step(`remove example ${p}`, () => rmSync(abs(p), { recursive: true, force: true }));
+  // Add-ons go in before the identity pass, so their files get the new application's identity too.
+  if (chosen.length > 0) applyAddons(root, chosen, { dryRun, log });
+  log(`add-ons: ${chosen.length > 0 ? chosen.map((a) => a.name).join(", ") : "none"}`);
   step("edit package.json", () => {
     const pkg = JSON.parse(readFileSync(abs("package.json"), "utf8"));
     for (const k of ["init:app", "check:boilerplate", "test:boilerplate", "prove:init"]) delete pkg.scripts[k];
@@ -136,7 +142,7 @@ function main() {
   const root = path.resolve(args.dir ?? path.join(here, "../.."));
   const { name, slug, bundleId } = args;
   try {
-    initApp({ root, name, slug, scope: args.scope ?? slug, bundleId, dryRun: Boolean(args.dryRun) });
+    initApp({ root, name, slug, scope: args.scope ?? slug, bundleId, addons: args.with, dryRun: Boolean(args.dryRun) });
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Repeatable functional proof of the template: copies this repository to a temp directory, initializes
 // it as an example app, then (with --full) installs from the rewritten lockfile and runs the generated
-// app's own validation plus an offline migration generation. Needs network only for `pnpm install`.
+// app's own validation plus an offline migration generation. The example app takes every add-on
+// (`addons/`), so the proof covers each one; an app without add-ons is the template itself, which
+// `pnpm validate` proves. Needs network only for `pnpm install`.
 // Creates no external resources and touches no database.
 //
 //   pnpm prove:init            # copy + init + leak check (seconds, offline)
@@ -38,7 +40,7 @@ for (const file of listSourceFiles(repo)) {
 if (!keep) process.on("exit", () => rmSync(root, { recursive: true, force: true }));
 console.log(`== copied template to ${root}`);
 
-initApp({ root, ...identity });
+initApp({ root, ...identity, addons: "all" });
 if (checkBoilerplate(root).length > 0) throw new Error("leak check not clean");
 
 function run(label, command, args, extraEnv = {}, cwd = root) {

@@ -4,7 +4,7 @@ Template-only document: `pnpm init:app` deletes it from the new application. The
 
 **This repository is the authoritative template** (owner decision, 2026-11-13). New applications are made from it directly; no application is the template's source any more. Improve the foundation here, and carry an improvement found in an application back here.
 
-It is domain-free: no product features, no domain tables, no migrations. It carries a neutral placeholder identity ("App Boilerplate", `app-boilerplate`, `com.example.appboilerplate`) that `init:app` replaces everywhere.
+Its base is domain-free: no product features, no domain tables, no migrations. Reviewed, reusable pieces that some applications need (for example payments) are optional **add-ons** (owner decision, 2026-11-18): a new application takes one only when it asks for it with `--with`, so an application without them stays domain-free. It carries a neutral placeholder identity ("App Boilerplate", `app-boilerplate`, `com.example.appboilerplate`) that `init:app` replaces everywhere.
 
 ## Create a new application
 
@@ -12,7 +12,7 @@ It is domain-free: no product features, no domain tables, no migrations. It carr
 2. Run:
 
 ```text
-pnpm init:app --name="Harbor Notes" --slug=harbor-notes --bundle-id=com.harbornotes.app [--scope=harbor-notes] [--dry-run]
+pnpm init:app --name="Harbor Notes" --slug=harbor-notes --bundle-id=com.harbornotes.app [--scope=harbor-notes] [--with=<add-on>,...|all] [--dry-run]
 ```
 
 | Flag | Becomes |
@@ -21,6 +21,7 @@ pnpm init:app --name="Harbor Notes" --slug=harbor-notes --bundle-id=com.harborno
 | `--slug` | root package name, Expo `slug` and URL `scheme`, tooling ledger schema prefix, repository name in the docs |
 | `--scope` (default: slug) | npm scope for `packages/*` |
 | `--bundle-id` | `ios.bundleIdentifier` and `android.package`; required; `com.example.*`, the template identity and reference-application names are rejected |
+| `--with` | optional add-ons to include (section "Add-ons"); `all` takes every one; default none |
 | `--dry-run` | prints every change without touching files |
 
 3. Init replaces the template identity in every text file (including `pnpm-lock.yaml`, so `--frozen-lockfile` keeps working), removes template-only prose and the Template proof CI job, resets `docs/notes.md`, deletes template-only files, and finishes by running the leak check.
@@ -36,9 +37,10 @@ scripts/boilerplate/init-app.mjs          pnpm init:app          (one-shot, no d
 scripts/boilerplate/check-boilerplate.mjs pnpm check:boilerplate (read-only leak detector)
 scripts/boilerplate/boilerplate.test.mjs  pnpm test:boilerplate  (runs init in a temp copy; part of pnpm validate)
 scripts/boilerplate/prove-init.mjs        pnpm prove:init [--full] [--keep]
+scripts/boilerplate/addons.mjs            the add-on mechanism used by init (section "Add-ons")
 ```
 
-`pnpm prove:init --full` initializes a fictional application in a temp directory, then installs, lints, typechecks, tests, builds, and generates a first migration offline. It needs network only for `pnpm install` and creates no external resources. CI runs it on every push and pull request as the **Template proof** job.
+`pnpm prove:init --full` initializes a fictional application, with every add-on, in a temp directory, then installs, lints, typechecks, tests, builds, and generates a first migration offline. It needs network only for `pnpm install` and creates no external resources. CI runs it on every push and pull request as the **Template proof** job.
 
 ### Leak detector
 
@@ -54,7 +56,26 @@ Monorepo (pnpm workspaces); `apps/web` (Next.js App Router, Tailwind v4, shadcn/
 
 ## Not included (on purpose)
 
-Product domain code, example features, any migration or domain table, real credentials, and any external resource.
+Product domain code in the base, example features, any migration or domain table in the base, real credentials, and any external resource.
+
+## Add-ons
+
+An add-on is a folder `addons/<name>/` (template-only: init removes the folder after copying what was chosen):
+
+```text
+addons/<name>/addon.json   { "name", "description", "requires": [other add-ons], "inserts": [{ "file", "marker", "text" }] }
+addons/<name>/files/...    copied to the same path in the new application
+```
+
+Rules, enforced by `scripts/boilerplate/addons.mjs` and its tests (`boilerplate.test.mjs`, "add-ons"):
+
+* An add-on only **adds** files. It changes a base file only through an insert: `text` goes on the lines after a `marker` line that the base file carries on purpose and that appears exactly once. Every check runs before anything is written.
+* `requires` names add-ons that must be chosen too; init orders them so each comes after what it needs.
+* Add-on files get the new application's identity like every other file, and must pass the leak check: generic names only, never a reference application's.
+* An add-on brings its own spec in `docs/features/`, its tables in their own schema file, its tests, and its rows in `docs/data-inventory.md`; it stays off until the application's settings or environment turn it on.
+* `pnpm prove:init --full` (the Template proof CI job) builds an application with every add-on, so each one is installed, linted, typechecked, tested and built on every push.
+
+Available add-ons: none yet. Planned (from a reviewed application, 2026-11-18): `legal` (terms and privacy pages, acceptance, data export, account deletion, rate limits) and `payments` (offers with tiers and access length, grace period, coupons and scholarship amounts, Stripe checkout, webhook and billing).
 
 ## Maintaining this template
 
