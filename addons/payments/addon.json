@@ -50,12 +50,32 @@
     {
       "file": "apps/web/proxy.ts",
       "marker": "// addons: protected routes",
-      "text": "  \"/admin(.*)\","
+      "text": "  \"/admin(.*)\",\n  \"/checkout(.*)\","
     },
     {
       "file": "apps/web/proxy.test.ts",
       "marker": "// addons: protected route names",
-      "text": "  \"admin\","
+      "text": "  \"admin\",\n  \"checkout\","
+    },
+    {
+      "file": "apps/web/proxy.test.ts",
+      "marker": "// addons: public route names",
+      "text": "  \"pricing\","
+    },
+    {
+      "file": "apps/web/lib/navigation/nav-config.ts",
+      "marker": "// addons: nav items",
+      "text": "  { label: \"Pricing\", href: \"/pricing\" },\n  { label: \"Admin\", href: \"/admin\", signedInOnly: true },"
+    },
+    {
+      "file": "apps/web/app/dashboard/page.tsx",
+      "marker": "// addons: dashboard imports",
+      "text": "import { MyAccessSection } from \"@/components/payments/my-access-section\";"
+    },
+    {
+      "file": "apps/web/app/dashboard/page.tsx",
+      "marker": "{/* addons: dashboard sections */}",
+      "text": "      <MyAccessSection userId={user.id} />"
     }
   ]
 }

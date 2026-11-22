@@ -15,6 +15,7 @@ export type NavItem = {
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: "Home", href: "/", exact: true },
   { label: "Dashboard", href: "/dashboard", signedInOnly: true },
+  // addons: nav items
 ];
 
 export function isNavItemActive(item: NavItem, pathname: string): boolean {

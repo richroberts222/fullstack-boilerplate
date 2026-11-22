@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import { getDb } from "../../db";
 import { createAccessRepo } from "../../db/access";
+import { createPaymentsReader } from "../../db/payments-read";
 import { createPricingRepo } from "../../db/pricing";
 import { createAuditRepo, createSettingsRepo } from "../../db/settings";
 import { inAllowList } from "../auth/site-owner";
@@ -12,6 +13,7 @@ import { createLogNotices } from "../notices/ports";
 import { createClosedPayments, createDevPayments, type PaymentsPort } from "../payments/ports";
 import { createAccessService, type AccessService } from "../services/access";
 import { createAtomicRunner } from "../services/atomic";
+import { createPaymentsReadService, type PaymentsReadService } from "../services/payments-read";
 import { createPaymentsSettingsService, type PaymentsSettingsService } from "../services/payments-settings";
 import { createPricingService, type PricingService } from "../services/pricing";
 import { getPrivacyService } from "./legal";
@@ -81,3 +83,11 @@ export function getAccessService(): AccessService {
     billingSettings: async () => ({ trialDays: (await getPaymentsSettingsService().getSettings()).trialDays }),
   }));
 }
+
+let paymentsRead: PaymentsReadService | undefined;
+export function getPaymentsReadService(): PaymentsReadService {
+  return (paymentsRead ??= createPaymentsReadService({ payments: createPaymentsReader(getDb()), isSiteOwner: isSiteOwner() }));
+}
+
+/** The application's scope catalog (`payments-scopes.ts`), for screens that need group and part names. */
+export const getScopeCatalog = () => scopeCatalog;

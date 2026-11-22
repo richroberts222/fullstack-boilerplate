@@ -1,0 +1,23 @@
+{
+  "untestedTestIds": [
+    "access-past-due-*",
+    "access-resume-*",
+    "access-tier-change-*",
+    "buy-error-*",
+    "coupons-empty",
+    "coupons-not-allowed",
+    "dev-checkout-error",
+    "grace-banner",
+    "grace-dismiss",
+    "grace-snooze",
+    "my-access-empty",
+    "my-access-manage-billing",
+    "my-access-pricing-link",
+    "offer-scope-id-*",
+    "offers-empty",
+    "offers-error",
+    "payment-status-*",
+    "payment-stop-end-*",
+    "payment-stop-now-*"
+  ]
+}
