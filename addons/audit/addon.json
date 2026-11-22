@@ -1,0 +1,17 @@
+{
+  "name": "audit",
+  "description": "Owner settings table and the audit trail (who changed what, when, with the prior value), with their data access.",
+  "requires": [],
+  "inserts": [
+    {
+      "file": "apps/web/db/schema.ts",
+      "marker": "// addons: schema exports",
+      "text": "export * from \"./addons/audit\";"
+    },
+    {
+      "file": "docs/data-inventory.md",
+      "marker": "<!-- addons: inventory rows (an add-on inserts its own heading and table after this line) -->",
+      "text": "\n### Settings and audit (add-on)\n\n| Table.column | Tier | Purpose | Retention | Deletion path |\n| --- | --- | --- | --- | --- |\n| site_settings.key | T1 | Names an owner setting | While the setting exists | Owner resets it; rows for retired settings are ignored and may be deleted |\n| site_settings.value | T0 | The setting's value; some are shown on the public site | Until the owner changes it | Owner changes it |\n| site_settings.updated_at | T1 | Record keeping | Same as the row | Deleted with the row |\n| audit_events.id | T1 | Identifies an audit entry | 2 years | Deleted by age |\n| audit_events.actor_user_id | T2 | Which owner made the change | 2 years | Retain: the audit trail must show who acted (`/docs/permissions.md` rule 6); deleted by age |\n| audit_events.action | T1 | What was done, for example settings.update | 2 years | Deleted by age |\n| audit_events.subject | T1 | What it was done to (a setting key or a record id, never personal data) | 2 years | Deleted by age |\n| audit_events.before | T2 | The prior value | 2 years | Deleted by age |\n| audit_events.after | T2 | The new value | 2 years | Deleted by age |\n| audit_events.created_at | T1 | When | 2 years | Deleted by age |\n"
+    }
+  ]
+}

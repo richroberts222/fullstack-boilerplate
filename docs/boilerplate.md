@@ -75,7 +75,7 @@ Rules, enforced by `scripts/boilerplate/addons.mjs` and its tests (`boilerplate.
 * An add-on brings its own spec in `docs/features/`, its tables in their own schema file, its tests, and its rows in `docs/data-inventory.md`; it stays off until the application's settings or environment turn it on.
 * `pnpm prove:init --full` (the Template proof CI job) builds an application with every add-on, so each one is installed, linted, typechecked, tested and built on every push.
 
-Available add-ons: none yet. Planned (from a reviewed application, 2026-11-18): `legal` (terms and privacy pages, acceptance, data export, account deletion, rate limits) and `payments` (offers with tiers and access length, grace period, coupons and scholarship amounts, Stripe checkout, webhook and billing).
+Available add-ons: `rate-limits`, `legal` (terms and privacy pages, acceptance, data export, account deletion), `audit` (owner settings and the audit trail) and `payments` (in progress: its tables, contracts and data export and deletion are in; services, checkout, Stripe and billing follow, task list in the source application). `payments` needs `legal` and `audit`.
 
 ## Maintaining this template
 
