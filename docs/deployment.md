@@ -36,6 +36,16 @@ Code-level reinforcement (in `parseServerEnv`, the existing validation foundatio
 
 Limit: code cannot tell that a `DATABASE_URL` actually points at the wrong Neon branch while `DATABASE_ENV=qa` claims otherwise. Preview variables must be set carefully, and the qa `DATABASE_URL` must be a credential that can only reach the qa branch.
 
+### Giving the owner a preview to look at
+
+An owner reviews a change on a running page, not in the code. When a project turns off Vercel's automatic deployments for branches (`gitProviderOptions.createDeployments` is "disabled", so a push to `main` makes a production deployment and nothing else deploys), Claude gives the owner a preview by hand:
+
+1. From the repository root: `vercel deploy --yes` (a preview deployment; it prints an address like `<project>-<hash>-<team>.vercel.app`).
+2. Point the one stable address at it: `vercel alias set <printed address> <project>-preview.vercel.app`.
+3. Always hand the owner the stable address, never the printed one and never `localhost`. Anything that must come back to the site (a payment provider's return address, a webhook) points at the stable address (`SITE_URL`, Preview scope), so it keeps working after each new deployment.
+
+Rules for the reply that hands over a preview: say what changed and what was proven in a few lines; put the full address of the page the reply is about on its own line just before the closing line (and the owner screen's address when the change is there); the closing line is the handoff line from `docs/notes.md`. If a deployment is unavailable, say so rather than sending an old address. Preview deployments use the `qa` database (section 2), so test data made there never reaches production.
+
 ## 3. Configuration ownership and secret locations
 
 Never commit real `DATABASE_URL` values, Clerk secret keys, tokens, passwords, or production credentials. `apps/web/.env.example` holds names and placeholders only; `.env*` is gitignored except `.env.example`/`.env.sample`.
