@@ -2,8 +2,9 @@
   "name": "payments",
   "description": "Offers with tiers and ways to pay, what each member holds, payments, coupons and scholarship amounts (tables and contracts first; services, checkout and Stripe follow).",
   "requires": [
+    "audit",
     "legal",
-    "audit"
+    "rate-limits"
   ],
   "inserts": [
     {
@@ -40,6 +41,21 @@
       "file": "apps/web/app/privacy/privacy-coverage.test.ts",
       "marker": "// addons: privacy coverage",
       "text": "  entitlements: \"What you hold:\",\n  payments: \"Payments: the amount and date\",\n  billing_customers: \"Billing: when you first pay\",\n  checkout_sessions: \"Checkouts you started\",\n  member_discounts: \"price reduction given to you\",\n  access_alert_prefs: \"Your answers to reminders\",\n  audit_events: \"Records of changes the site owner makes\","
+    },
+    {
+      "file": "apps/web/lib/services/rate-limit.ts",
+      "marker": "// addons: rate limits",
+      "text": "  quote: { max: 30, windowSeconds: 600 },\n  checkout: { max: 10, windowSeconds: 600 },\n  billing: { max: 20, windowSeconds: 600 },"
+    },
+    {
+      "file": "apps/web/proxy.ts",
+      "marker": "// addons: protected routes",
+      "text": "  \"/admin(.*)\","
+    },
+    {
+      "file": "apps/web/proxy.test.ts",
+      "marker": "// addons: protected route names",
+      "text": "  \"admin\","
     }
   ]
 }
