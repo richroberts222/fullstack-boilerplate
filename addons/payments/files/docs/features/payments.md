@@ -20,6 +20,10 @@ The application supplies one thing: a **scope catalog port** that answers "does 
 
 Tables (`apps/web/db/addons/payments.ts`): `offers`, `entitlements`, `payments`, `checkout_sessions`, `coupons`, `member_discounts`, `access_alert_prefs`, `billing_customers`. Contracts (`packages/validation/src/access.ts`, `pricing.ts`): offer, coupon, scholarship, refund, cancel and plan-change inputs, with no defaults on edits. Every column is in `docs/data-inventory.md` ("Payments (add-on)").
 
+## Built in S14b: the services
+
+`lib/services/access.ts` (offers, checkout, entitlements, grace period, refunds, plan changes; every owner change audited), `access-rules.ts`, `pricing.ts` (quote, coupons, scholarship amounts: server-side, whole cents, never below zero), their data access (`db/access.ts`, `db/pricing.ts`), the payment and notice ports (`lib/payments/ports.ts`, `lib/notices/ports.ts`), the owner rule (`lib/auth/site-owner.ts`), the add-on's settings contract (`packages/validation/src/payments-settings.ts`) and `access.test.ts` (the source application's access tests, renamed to groups and parts). The application's one job is `ScopeCatalog` (`lib/services/scope-catalog.ts`). Access checks are `canAccess` and `canAccessBonus` with `{ partId, groupId }`.
+
 ## Still to come (tracked in the source application's `docs/notes.md`)
 
-S14b the services (`access`, `access-rules`, `pricing`) with tests; S14c ports, the test checkout, wiring, screens; S15 Stripe adapter, webhook and billing; S18 applying an add-on to an existing application; then an Opus review of every money rule.
+S14c the test checkout, wiring and screens; S15 Stripe adapter, webhook and billing; S18 applying an add-on to an existing application; then an Opus review of every money rule.
