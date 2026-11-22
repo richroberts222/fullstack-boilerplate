@@ -39,6 +39,7 @@ Rich clears the conversation after each task. Nothing may live only in chat.
 - **G19 Prove before claiming.** When something breaks, look at it yourself first, fix it, and show it working before handing it back. Never push a guess for Rich to try. Say plainly what is unverified.
 - **G20 Ask before spending** on any vendor, account, plan, domain or tool.
 - **G21 Surface conflicts.** If instructions, documents and the repository disagree, say what was assumed, what exists and why it matters; stop and ask if the difference is material.
+- **G27 Silent testing.** Say nothing to Rich about test runs, retries or fixes in progress. Report a test only when it still fails after three different fix attempts, with what fails and why (Rich, 2026-11-22). The final reply still states the result in one line.
 - **G24 No screenshots as proof.** Rich does not need a screenshot every time, and never needs one sent to him. Take a screenshot only when you need to see the screen to click or debug, and never take one just to confirm a result; use a text check (a success notice, a find, a test result). Rich's saying "no screenshot" in a project's notes means the same.
 
 ## 4. Where a new rule goes
