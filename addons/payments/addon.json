@@ -30,7 +30,7 @@
     {
       "file": "apps/web/lib/legal/account-data.ts",
       "marker": "// addons: account data parts",
-      "text": "    ...paymentsAccountData(db),"
+      "text": "    // The billing step is loaded only when an account is deleted (it needs the server-only wiring).\n    ...paymentsAccountData(db, { beforeDelete: async (userId) => (await import(\"../addons/payments-deletion\")).stopBillingBeforeDelete(userId) }),"
     },
     {
       "file": "apps/web/app/privacy/page.tsx",

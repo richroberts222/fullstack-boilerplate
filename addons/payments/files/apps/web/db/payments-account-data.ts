@@ -11,11 +11,13 @@ import { accessAlertPrefs, billingCustomers, checkoutSessions, entitlements, mem
 // records and owner grants. Kept for tax records (7 years) with the member id replaced by `anonId`:
 // purchases and their payments.
 
-export function paymentsAccountData(db: Database): AccountDataPart[] {
+export function paymentsAccountData(db: Database, hooks: { beforeDelete?: (userId: string) => Promise<void> } = {}): AccountDataPart[] {
   return [
     {
       name: "access",
       tables: ["entitlements"],
+      // Stops plans that still bill and removes the provider's customer record before anything is deleted.
+      beforeDelete: hooks.beforeDelete,
       exportFor: (userId) =>
         withDbErrors("payments.exportAccess", () =>
           db

@@ -30,8 +30,14 @@ Wiring in `lib/addons/payments.ts` (the base composition root is not edited); th
 
 ## Browser test and its known gaps
 
-`e2e/payments.spec.ts` drives the owner screens and a purchase with the test checkout. It is skipped unless `PAYMENTS_E2E=1`; it needs `PAYMENTS_PROVIDER=dev` and `OWNER_USER_IDS` naming the E2E Clerk user (a throwaway database). It was written with the screens and has not yet been run against a live Clerk development instance. `docs/test-coverage-baseline.payments.json` lists the controls the dev checkout cannot reach (payment past due, resume, plan change and stop-plan buttons need Stripe; the grace banner needs a lapsed plan; empty states and error paths need a fresh account or a failing service). The list may only shrink, and S15 covers the Stripe ones.
+`e2e/payments.spec.ts` drives the owner screens and a purchase with the test checkout. It is skipped unless `PAYMENTS_E2E=1`; it needs `PAYMENTS_PROVIDER=dev` and `OWNER_USER_IDS` naming the E2E Clerk user (a throwaway database). It was written with the screens and has not yet been run against a live Clerk development instance. `docs/test-coverage-baseline.payments.json` lists the controls the dev checkout cannot reach (payment past due, resume, plan change, stop-plan buttons and the return page from Stripe need Stripe; the grace banner needs a lapsed plan; empty states and error paths need a fresh account or a failing service). The list may only shrink, and S15 covers the Stripe ones.
+
+## Built in S15: Stripe
+
+`lib/payments/stripe.ts` (the only code that talks to Stripe: REST with a pinned API version, hosted checkout, no card data on this site, an idempotency key on every write, a signed-notification check with a replay window), the notification route `/api/v1/payments/stripe` (signature verified first; repeated and out-of-order events are safe; it reports, the access service decides), the return page `/checkout/stripe/return`, the daily check `GET /api/v1/jobs/billing-reconcile` (reports differences, fixes nothing; needs `CRON_SECRET` as a bearer token), and account deletion: `lib/services/billing-stop.ts` stops plans that still bill and removes the Stripe customer before any data is deleted, wired through the access part's `beforeDelete`; a provider failure deletes nothing.
+
+To turn it on: `PAYMENTS_PROVIDER=stripe`, `STRIPE_SECRET_KEY` (a test key outside prod), `STRIPE_WEBHOOK_SECRET` (create the webhook endpoint to `<site>/api/v1/payments/stripe` with the events listed in the source application's `docs/payments.md`), `SITE_URL` (where Stripe sends buyers back; on Vercel previews `VERCEL_URL` is the fallback), `CRON_SECRET`. The environment guard refuses a live key outside prod and a test key in prod. Nothing here was run against Stripe from the template (no keys there); the source application ran every path in Stripe test mode, and the adapter's own tests (forged signature, replay, repeated event) run here.
 
 ## Still to come (tracked in the source application's `docs/notes.md`)
 
-S15 Stripe adapter, webhook and billing; S18 applying an add-on to an existing application; then an Opus review of every money rule.
+S18 applying an add-on to an existing application; then an Opus review of every money rule (O12).

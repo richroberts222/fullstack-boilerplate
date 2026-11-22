@@ -18,6 +18,8 @@
     "offers-error",
     "payment-status-*",
     "payment-stop-end-*",
-    "payment-stop-now-*"
+    "payment-stop-now-*",
+    "stripe-return-account",
+    "stripe-return-account-link"
   ]
 }

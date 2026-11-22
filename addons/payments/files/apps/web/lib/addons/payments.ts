@@ -11,6 +11,7 @@ import { inAllowList } from "../auth/site-owner";
 import { createClerkAccounts } from "../auth/clerk-accounts";
 import { createLogNotices } from "../notices/ports";
 import { createClosedPayments, createDevPayments, type PaymentsPort } from "../payments/ports";
+import { createStripePayments } from "../payments/stripe";
 import { createAccessService, type AccessService } from "../services/access";
 import { createAtomicRunner } from "../services/atomic";
 import { createPaymentsReadService, type PaymentsReadService } from "../services/payments-read";
@@ -30,9 +31,18 @@ export function getPaymentsEnv(): PaymentsEnv {
 
 const isSiteOwner = () => inAllowList(getPaymentsEnv().ownerUserIds);
 
-function createPayments(): PaymentsPort {
-  const { paymentsProvider } = getPaymentsEnv();
-  if (paymentsProvider === "stripe") throw new Error("PAYMENTS_PROVIDER 'stripe' needs the Stripe adapter, which the payments add-on gets in its Stripe step (S15).");
+/** This deployment's own address, for the payment provider to send the buyer back to. */
+function siteUrl(): string {
+  const explicit = process.env.SITE_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+  const vercel = process.env.VERCEL_URL?.trim();
+  return vercel ? `https://${vercel}` : "http://localhost:3000";
+}
+
+/** The payments port for the chosen provider (also used when an account is deleted: payments-deletion.ts). */
+export function createPayments(): PaymentsPort {
+  const { paymentsProvider, stripeSecretKey, stripeWebhookSecret } = getPaymentsEnv();
+  if (paymentsProvider === "stripe") return createStripePayments({ secretKey: stripeSecretKey, webhookSecret: stripeWebhookSecret, siteUrl: siteUrl() });
   return paymentsProvider === "dev" ? createDevPayments() : createClosedPayments();
 }
 
