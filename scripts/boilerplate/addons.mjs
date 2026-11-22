@@ -81,7 +81,7 @@ export function insertAfterMarker(content, marker, text, where) {
  * Copies each add-on's overlay into `root` and applies its inserts. Every check runs before anything is
  * written, so a refused add-on leaves the copy untouched.
  */
-export function applyAddons(root, specs, { dryRun = false, log = console.log } = {}) {
+export function applyAddons(root, specs, { dryRun = false, log = console.log, addonsRoot = root } = {}) {
   const copies = [];
   const edits = new Map();
   /** A file as it will be after the edits so far: an earlier edit, an add-on's new file, or the base file. */
@@ -92,7 +92,7 @@ export function applyAddons(root, specs, { dryRun = false, log = console.log } =
     return existsSync(path.join(root, rel)) ? readFileSync(path.join(root, rel), "utf8") : null;
   };
   for (const spec of specs) {
-    const filesDir = path.join(root, ADDONS_DIR, spec.name, "files");
+    const filesDir = path.join(addonsRoot, ADDONS_DIR, spec.name, "files");
     const overlay = existsSync(filesDir) ? walk(filesDir) : [];
     for (const rel of overlay) {
       if (existsSync(path.join(root, rel)) || copies.some((c) => c.rel === rel)) throw new Error(`Add-on ${spec.name} would replace ${rel}; an add-on may only add files (use an insert after a marker to change a base file).`);
@@ -116,4 +116,42 @@ export function applyAddons(root, specs, { dryRun = false, log = console.log } =
     if (!dryRun) writeFileSync(path.join(root, rel), text);
   }
   return { added: copies.map((c) => c.rel), edited: [...edits.keys()] };
+}
+
+/**
+ * Everything that would stop `specs` from being added to `root`, all of it at once: an overlay file that already
+ * exists (never overwritten), an insert into a file that is missing, and a marker line that is not there exactly
+ * once. An empty list means applyAddons will succeed. Nothing is written.
+ * `addonsRoot` is where the add-on folders are read from (default: `root`), for applying to an existing app.
+ */
+export function checkAddons(root, specs, { addonsRoot = root } = {}) {
+  const problems = [];
+  const copies = [];
+  const edits = new Map();
+  const current = (rel) => {
+    if (edits.has(rel)) return edits.get(rel);
+    const added = copies.find((c) => c.rel === rel);
+    if (added) return readFileSync(added.from, "utf8");
+    return existsSync(path.join(root, rel)) ? readFileSync(path.join(root, rel), "utf8") : null;
+  };
+  for (const spec of specs) {
+    const filesDir = path.join(addonsRoot, ADDONS_DIR, spec.name, "files");
+    for (const rel of existsSync(filesDir) ? walk(filesDir) : []) {
+      if (existsSync(path.join(root, rel)) || copies.some((c) => c.rel === rel)) problems.push(`${spec.name}: ${rel} already exists, so it would be overwritten`);
+      else copies.push({ rel, from: path.join(filesDir, rel) });
+    }
+    for (const ins of spec.inserts) {
+      const text = current(ins.file);
+      if (text === null) {
+        problems.push(`${spec.name}: ${ins.file} does not exist (needed for the marker "${ins.marker}")`);
+        continue;
+      }
+      try {
+        edits.set(ins.file, insertAfterMarker(text, ins.marker, ins.text, `${spec.name}, ${ins.file}`));
+      } catch (error) {
+        problems.push(`${spec.name}: ${ins.file}: the marker line "${ins.marker}" must appear exactly once (${error.message.match(/found (\d+)/)?.[1] ?? "?"} found)`);
+      }
+    }
+  }
+  return problems;
 }

@@ -75,6 +75,15 @@ Rules, enforced by `scripts/boilerplate/addons.mjs` and its tests (`boilerplate.
 * An add-on brings its own spec in `docs/features/`, its tables in their own schema file, its tests, and its rows in `docs/data-inventory.md`; it stays off until the application's settings or environment turn it on.
 * `pnpm prove:init --full` (the Template proof CI job) builds an application with every add-on, so each one is installed, linted, typechecked, tested and built on every push.
 
+### Adding an add-on to an application that already exists
+
+```text
+node scripts/boilerplate/apply-addon.mjs --dir=<the application> --with=<add-on>[,<add-on>] [--dry-run] [--name="App Name"]
+pnpm addon:apply --dir=<the application> --with=<add-on>      (same thing, run from a copy of this template)
+```
+
+Run it from a copy of this template; it reads the add-ons from there (an application has no `addons/` folder) and gives their text the application's own identity, read from its package files. It checks everything first and then writes: if any file would be overwritten, a target file is missing, or a marker line is missing or repeated, it lists every one of them and changes nothing. An add-on already there (all its files exist) is refused; an add-on that needs another is allowed when the other is already in the application, otherwise name it in `--with`. Afterwards: `pnpm --filter web db:generate` for the new tables, then `pnpm validate`. An application made before a marker line existed needs that line added by hand first (the message says which). `pnpm prove:init --full --apply` proves it: an application made with no add-ons, then given `legal` and `payments`, installed, linted, typechecked, tested and built.
+
 Available add-ons: `rate-limits`, `legal` (terms and privacy pages, acceptance, data export, account deletion), `audit` (owner settings and the audit trail) and `payments` (in progress: its tables, contracts and data export and deletion are in; services, checkout, Stripe and billing follow, task list in the source application). `payments` needs `legal` and `audit`.
 
 ## Maintaining this template

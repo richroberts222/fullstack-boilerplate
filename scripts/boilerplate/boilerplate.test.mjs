@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { checkBoilerplate } from "./check-boilerplate.mjs";
 import { insertAfterMarker, resolveAddons } from "./addons.mjs";
+import { applyToExistingApp } from "./apply-addon.mjs";
 import { applyIdentity, initApp, stripMarkedRegions, validateIdentity } from "./init-app.mjs";
 import { listSourceFiles, untrackedSourceFiles } from "./manifest.mjs";
 
@@ -157,6 +158,7 @@ describe("add-ons", () => {
     put("addons/alpha/files/apps/web/lib/alpha/alpha.ts", 'export const product = "App Boilerplate alpha";\n');
     put("addons/beta/addon.json", JSON.stringify({ name: "beta", description: "Sample B", requires: ["alpha"], inserts: [{ file: "apps/web/lib/utils.ts", marker: betaMarker, text: 'export { product } from "./alpha/alpha";' }] }));
     put(betaReplacesBase ? "addons/beta/files/apps/web/lib/utils.ts" : "addons/beta/files/docs/features/beta.md", "# Beta\n");
+    put("addons/beta/files/docs/features/beta-more.md", "# More beta\n");
     return root;
   }
   const quiet = { log: () => {} };
@@ -203,6 +205,60 @@ describe("add-ons", () => {
       assert.equal(read(root, "package.json"), before, "nothing was changed");
       assert.ok(!existsSync(path.join(root, "apps/web/lib/alpha")), "no add-on file was written");
     }
+  });
+
+  // S18: an application that already exists gets an add-on afterwards (`pnpm addon:apply`).
+  /** A finished application made without add-ons, carrying the sample marker, and the template copy with the samples to take them from. */
+  function existingApp({ marker = true } = {}) {
+    const templateRoot = copyWithSamples();
+    const appRoot = copyTemplate();
+    initApp({ root: appRoot, ...identity, ...quiet });
+    if (marker) writeFileSync(path.join(appRoot, "apps/web/lib/utils.ts"), `${read(appRoot, "apps/web/lib/utils.ts")}\n${MARKER}\n`);
+    return { templateRoot, appRoot };
+  }
+
+  it("applies to an existing application: the files with its own identity, the insert after the marker, no addons/ left behind", () => {
+    const { templateRoot, appRoot } = existingApp();
+    applyToExistingApp({ templateRoot, appRoot, names: "alpha,beta", ...quiet });
+    assert.equal(read(appRoot, "apps/web/lib/alpha/alpha.ts"), 'export const product = "Harbor Notes alpha";\n');
+    const utils = read(appRoot, "apps/web/lib/utils.ts");
+    assert.ok(utils.indexOf('export { product } from "./alpha/alpha";') > utils.indexOf(MARKER));
+    assert.ok(!existsSync(path.join(appRoot, "addons")));
+    assert.deepEqual(checkBoilerplate(appRoot), []);
+  });
+
+  it("applies a second add-on that needs one already there, and refuses one whose requirement is missing", () => {
+    const { templateRoot, appRoot } = existingApp();
+    assert.throws(() => applyToExistingApp({ templateRoot, appRoot, names: "beta", ...quiet }), /needs alpha, which is not in this application yet/);
+    applyToExistingApp({ templateRoot, appRoot, names: "alpha", ...quiet });
+    applyToExistingApp({ templateRoot, appRoot, names: "beta", ...quiet });
+    assert.ok(existsSync(path.join(appRoot, "docs/features/beta.md")));
+  });
+
+  it("refuses an add-on that is already there", () => {
+    const { templateRoot, appRoot } = existingApp();
+    applyToExistingApp({ templateRoot, appRoot, names: "alpha", ...quiet });
+    assert.throws(() => applyToExistingApp({ templateRoot, appRoot, names: "alpha", ...quiet }), /already in this application/);
+  });
+
+  it("lists every file it would overwrite and every missing marker, and changes nothing", () => {
+    const { templateRoot, appRoot } = existingApp({ marker: false });
+    mkdirSync(path.join(appRoot, "docs/features"), { recursive: true });
+    writeFileSync(path.join(appRoot, "docs/features/beta.md"), "# my own beta page\n");
+    const before = read(appRoot, "apps/web/lib/utils.ts");
+    // alpha first (it adds a file), then beta, which collides with the application's own page and has no marker to insert after
+    applyToExistingApp({ templateRoot, appRoot, names: "alpha", ...quiet });
+    assert.throws(
+      () => applyToExistingApp({ templateRoot, appRoot, names: "beta", ...quiet }),
+      (error) => /Nothing was changed. 2 problem/.test(error.message) && /docs\/features\/beta\.md already exists/.test(error.message) && /must appear exactly once \(0 found\)/.test(error.message),
+    );
+    assert.equal(read(appRoot, "apps/web/lib/utils.ts"), before, "the base file was not edited");
+    assert.equal(read(appRoot, "docs/features/beta.md"), "# my own beta page\n", "the application's own file was not overwritten");
+  });
+
+  it("refuses an uninitialized template copy", () => {
+    const templateRoot = copyWithSamples();
+    assert.throws(() => applyToExistingApp({ templateRoot, appRoot: copyTemplate(), names: "alpha", ...quiet }), /uninitialized template copy/);
   });
 
   it("an insert keeps the file's line endings", () => {

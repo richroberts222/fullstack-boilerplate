@@ -9,6 +9,7 @@
 //   pnpm prove:init            # copy + init + leak check (seconds, offline)
 //   pnpm prove:init --full     # also install, lint, typecheck, test, build, db:generate
 //   pnpm prove:init --full --keep   # keep the directory and print its path
+//   pnpm prove:init --full --apply  # an app made without add-ons, then given legal and payments afterwards
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,6 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { checkBoilerplate } from "./check-boilerplate.mjs";
+import { applyToExistingApp } from "./apply-addon.mjs";
 import { initApp } from "./init-app.mjs";
 import { isLocalEnvFile, listSourceFiles, untrackedSourceFiles } from "./manifest.mjs";
 
@@ -23,6 +25,9 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const identity = { name: "Harbor Notes", slug: "harbor-notes", scope: "harbor", bundleId: "com.harbornotes.app" };
 const full = process.argv.includes("--full");
 const keep = process.argv.includes("--keep");
+// --apply: the application is made WITHOUT add-ons, then add-ons are applied to it afterwards (in two steps, so
+// the second needs the first), the way an application that already exists gets them (task S18).
+const apply = process.argv.includes("--apply");
 
 const untracked = untrackedSourceFiles(repo);
 if (untracked.length > 0) {
@@ -40,7 +45,11 @@ for (const file of listSourceFiles(repo)) {
 if (!keep) process.on("exit", () => rmSync(root, { recursive: true, force: true }));
 console.log(`== copied template to ${root}`);
 
-initApp({ root, ...identity, addons: "all" });
+initApp({ root, ...identity, addons: apply ? undefined : "all" });
+if (apply) {
+  applyToExistingApp({ templateRoot: repo, appRoot: root, names: "rate-limits,legal" });
+  applyToExistingApp({ templateRoot: repo, appRoot: root, names: "audit,payments" });
+}
 if (checkBoilerplate(root).length > 0) throw new Error("leak check not clean");
 
 function run(label, command, args, extraEnv = {}, cwd = root) {

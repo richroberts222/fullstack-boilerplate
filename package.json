@@ -18,6 +18,7 @@
     "init:app": "node scripts/boilerplate/init-app.mjs",
     "check:boilerplate": "node scripts/boilerplate/check-boilerplate.mjs",
     "test:boilerplate": "node --test scripts/boilerplate/boilerplate.test.mjs",
-    "prove:init": "node scripts/boilerplate/prove-init.mjs"
+    "prove:init": "node scripts/boilerplate/prove-init.mjs",
+    "addon:apply": "node scripts/boilerplate/apply-addon.mjs"
   }
 }
