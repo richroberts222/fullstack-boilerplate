@@ -37,6 +37,8 @@ describe("Stripe signature", () => {
     expect(verifySignature(body, null, SECRET, NOW)).toBe(false);
     expect(verifySignature(body, "t=1,v1=zz", SECRET, NOW)).toBe(false);
     expect(verifySignature(body, sign(body), "", NOW)).toBe(false);
+    // O12: with no secret set, a notification signed with an empty key is still refused (anyone could make one).
+    expect(verifySignature(body, sign(body, undefined, ""), "", NOW)).toBe(false);
   });
 
   it("AC23: readEvent throws forbidden on a bad signature, before reading the body", async () => {

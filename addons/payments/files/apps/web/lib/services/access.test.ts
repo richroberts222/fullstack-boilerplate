@@ -634,7 +634,8 @@ describe("grace period", () => {
     // A visitor and another member get no scholarship amount.
     expect((await env.svc.quote(null, { offerId, couponCode: undefined })).finalCents).toBe(10000);
     expect((await env.svc.quote(other, { offerId, couponCode: undefined })).finalCents).toBe(10000);
-    expect((await env.svc.quote(member, { offerId, couponCode: "BIG" })).finalCents).toBe(0);
+    // A coupon larger than what is left takes off only what is left (O12: the amount shown is never above the price).
+    expect(await env.svc.quote(member, { offerId, couponCode: "BIG" })).toMatchObject({ scholarshipCents: 3000, couponCents: 7000, finalCents: 0 });
   });
 
   it("O7: an ended, used-up, turned-off or other-offer code is refused with one message, and checkout leaves nothing behind", async () => {
@@ -782,6 +783,9 @@ describe("grace period", () => {
     provider.state.completed.set("cs_1", paid(token, priceCents));
     expect(await runService(() => env.svc.completeProviderCheckout(other, "cs_1"))).toMatchObject({ ok: false, error: { code: "not_found" } });
     expect(await env.svc.completeProviderCheckout(member, "cs_1")).toEqual({ status: "granted" });
+    expect(await env.svc.completeProviderCheckout(member, "cs_1")).toEqual({ status: "already" });
+    // O12: a completed session never grants again, even when reported under another payment id.
+    provider.state.completed.set("cs_1", paid(token, priceCents, null, "pi_2"));
     expect(await env.svc.completeProviderCheckout(member, "cs_1")).toEqual({ status: "already" });
     provider.state.events.push({ kind: "checkout_completed", providerSessionId: "cs_1" });
     expect(await env.svc.handlePaymentEvent("{}", "good")).toEqual({ handled: true });
